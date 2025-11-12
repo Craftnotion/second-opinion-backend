@@ -1,0 +1,64 @@
+jwt:
+  secret: NESTJSBACKENDAUTHT@--
+  token_expiry: 30d
+
+node_env: development
+
+frontend:
+  base_url: http://localhost:3000
+
+app:
+  url:   http://localhost:3001
+
+organisation:
+  has_organisation: true
+
+otp:
+  length: 6
+
+sms:
+  username: guideme.trans
+  password: 3R1rt
+  senderId: GUIDSM
+  unicode: false
+  dltContentId: '1007165665000180033'
+
+typeorm:
+  port: 3306
+  host: localhost
+  synchronize: true
+  logging: true
+  connection: mysql
+  username: root
+  password: Anilkumar@1423
+  database: second_opinion
+  secure: true
+
+storage:
+  disk: local
+
+aws:
+  accessKeyId: 921ad53cb68170ebda2771d35670524a
+  secretAccessKey: 5fd3a19e71be31dca19ed2736b53de6e615ee1db48681c68e54887255d870f45
+  endpoint: https://52d45400e195803bd6da970dc7961d23.r2.cloudflarestorage.com
+  bucket_name: test-bucket
+
+allowed_file_size: 1000000
+
+date_format: 'LLL yy'
+
+time_format: 'hh:mm a'
+
+mail:
+  host: sandbox.smtp.mailtrap.io
+  port: 2525
+  user: 96c6e6f69bf6e8
+  password: f75888149eeac8
+  from: craftnotion@gmail.com
+
+# App branding for emails
+name: SENIOR EXPERTS
+background: '#f8f9fa'
+color: '#007bff'
+
+frontend_url: http://localhost:3000
