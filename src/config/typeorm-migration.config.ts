@@ -29,7 +29,7 @@ async function getDataSource(): Promise<DataSource> {
         synchronize: false,
         logging: false,
         entities: [join(__dirname, "../", "database", "entities", '**', '*.entity.{ts,js}')],
-        migrations: [join(__dirname, "../", "database", 'migrations/*.{ts,js}')],
+        migrations: [join(__dirname, "../", "database", 'migrations/*.ts')],
         
     });
 }
