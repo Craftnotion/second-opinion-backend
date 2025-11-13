@@ -5,7 +5,7 @@ export type user_identity_type = 'email' | 'phone' | 'username';
 export type authentication_mode = 'otp' | 'link';
 
 export type action_type = 'accept' | 'reject';
-
+export type status = 'active' | 'inactive';
 export type ImageMimeTypes =
   | 'image/*'
   | 'image/avif'
