@@ -14,25 +14,15 @@ export class Users1762921363743 implements MigrationInterface {
             generationStrategy: 'increment',
           },
           {
-            name: 'first_name',
+            name: 'full_name',
             type: 'varchar',
             isNullable: false,
-          },
-          {
-            name: 'last_name',
-            type: 'varchar',
-            isNullable: true,
           },
           {
             name: 'email',
             type: 'varchar',
             isNullable: true,
             isUnique: true,
-          },
-          {
-            name: 'password',
-            type: 'varchar',
-            isNullable: true,
           },
           {
             name: 'phone',
@@ -45,17 +35,6 @@ export class Users1762921363743 implements MigrationInterface {
             type: 'varchar',
             isNullable: false,
             default: `'user'`,
-          },
-          {
-            name: 'status',
-            type: 'enum',
-            enum: ['active', 'inactive'],
-            default: `'active'`,
-          },
-          {
-            name: 'avatar',
-            type: 'varchar',
-            isNullable: true,
           },
           {
             name: 'created_at',
@@ -74,8 +53,6 @@ export class Users1762921363743 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-
     await queryRunner.dropTable('users');
-
   }
 }
