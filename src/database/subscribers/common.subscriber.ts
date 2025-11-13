@@ -24,6 +24,7 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
 
   getSlugField = (entity: any) => {
     return (
+      entity?.full_name ||
       entity?.first_name ||
       entity?.name ||
       entity?.title ||

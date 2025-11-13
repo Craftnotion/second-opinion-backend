@@ -13,13 +13,12 @@ export default class AdminSeed implements Seeder {
 
     if (!adminExists) {
       const adminUser = userRepository.create({
-        first_name: 'Admin',
-        last_name: 'User',
+        full_name: 'Admin',
+        slug: 'admin-user',
         email: adminEmail,
         password: adminPassword,
         role: 'admin',
         status: 'active',
-        slug: 'admin-user',
       });
       await userRepository.save(adminUser);
       console.log('Admin user created with email:', adminEmail);

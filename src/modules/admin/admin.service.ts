@@ -1,26 +1,50 @@
 import { Injectable } from '@nestjs/common';
-import { CreateAdminDto } from './dto/create-admin.dto';
-import { UpdateAdminDto } from './dto/update-admin.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UserService } from '../user/user.service';
+import { HashService } from '../../services/hash/hash.service';
+import * as config from 'config';
+const dbConfig = config.get<{ [key: string]: string }>('app');
 
 @Injectable()
 export class AdminService {
-  create(createAdminDto: CreateAdminDto) {
-    return 'This action adds a new admin';
-  }
+   constructor(
+    private readonly userService:UserService,
+    private readonly hashService: HashService
 
-  findAll() {
-    return `This action returns all admin`;
-  }
+   ){}
+  
 
-  findOne(id: number) {
-    return `This action returns a #${id} admin`;
-  }
+  async createUser(body: CreateUserDto, file?: Express.Multer.File){
+    const { full_name, email, phone} = body;
+     const existingUser = await this.userService.findOne({
+      where: { email: body.email },
+    });
 
-  update(id: number, updateAdminDto: UpdateAdminDto) {
-    return `This action updates a #${id} admin`;
-  }
+      if(existingUser){
+         return {
+          success: 0,
+          message: 'Employee with this email already exists',
+        };
+      }
 
-  remove(id: number) {
-    return `This action removes a #${id} admin`;
+    const url = dbConfig.getUrl;
+    const newUser = await this.userService.create({
+      full_name: full_name,
+      email: email,
+      phone: phone,
+      role: 'employee',
+      status: 'inactive',
+      password: await this.hashService.hashPassword('defaultPassword123'),
+      avatar: file ? url + '/' + file : undefined,
+    });
+   console.log('newUser', newUser);
+   // await this.authService.employeeInvite(newUser);
+
+    return {
+      success: 1,
+      message: 'common.employee.created',
+      data: newUser,
+    };
   }
+  
 }
