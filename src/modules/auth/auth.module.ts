@@ -6,13 +6,21 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { HashService } from 'src/services/hash/hash.service';
 import { JwtService } from '@nestjs/jwt';
+import { BullModule } from '@nestjs/bullmq';
+import { Code } from 'src/database/entities/code.entity';
+import { CodeService } from 'src/services/code/code.service';
+import { StringService } from 'src/services/string/string.service';
 
 @Module({
-  imports:[  TypeOrmModule.forFeature([User]), 
- ConfigModule
-],
+  imports: [
+    TypeOrmModule.forFeature([User, Code]),
+    ConfigModule,
+    BullModule.registerQueue({
+      name: 'text',
+    }),
+  ],
   controllers: [AuthController],
-  providers: [AuthService, HashService, JwtService],
-  exports:[AuthService]
+  providers: [AuthService, HashService, JwtService, CodeService, StringService],
+  exports: [AuthService],
 })
 export class AuthModule {}

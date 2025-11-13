@@ -7,25 +7,23 @@ const dbConfig = config.get<{ [key: string]: string }>('app');
 
 @Injectable()
 export class AdminService {
-   constructor(
-    private readonly userService:UserService,
-    private readonly hashService: HashService
+  constructor(
+    private readonly userService: UserService,
+    private readonly hashService: HashService,
+  ) {}
 
-   ){}
-  
-
-  async createUser(body: CreateUserDto, file?: Express.Multer.File){
-    const { full_name, email, phone} = body;
-     const existingUser = await this.userService.findOne({
+  async createUser(body: CreateUserDto, file?: Express.Multer.File) {
+    const { full_name, email, phone } = body;
+    const existingUser = await this.userService.findOne({
       where: { email: body.email },
     });
 
-      if(existingUser){
-         return {
-          success: 0,
-          message: 'Employee with this email already exists',
-        };
-      }
+    if (existingUser) {
+      return {
+        success: 0,
+        message: 'Employee with this email already exists',
+      };
+    }
 
     const url = dbConfig.getUrl;
     const newUser = await this.userService.create({
@@ -33,12 +31,9 @@ export class AdminService {
       email: email,
       phone: phone,
       role: 'employee',
-      status: 'inactive',
-      password: await this.hashService.hashPassword('defaultPassword123'),
-      avatar: file ? url + '/' + file : undefined,
     });
-   console.log('newUser', newUser);
-   // await this.authService.employeeInvite(newUser);
+    console.log('newUser', newUser);
+    // await this.authService.employeeInvite(newUser);
 
     return {
       success: 1,
@@ -46,5 +41,4 @@ export class AdminService {
       data: newUser,
     };
   }
-  
 }

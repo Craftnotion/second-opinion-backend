@@ -8,14 +8,20 @@ import { HashService } from '../../services/hash/hash.service';
 import { JwtService } from '@nestjs/jwt';
 import * as config from 'config';
 import { configObject } from 'src/types/types';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { CodeService } from 'src/services/code/code.service';
+import { loginDto } from './dto/login.dto';
 const JwtConfig = config.get<configObject>('jwt');
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectQueue('text') private readonly textQueue: Queue,
     private readonly jwtService: JwtService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly hashService: HashService,
+    private readonly codeService: CodeService,
   ) {}
 
   async GenerateToken(data: any, time: string = '100d'): Promise<string> {
@@ -23,55 +29,66 @@ export class AuthService {
     // and wrap non-object values so jsonwebtoken receives a plain object.
     const payload =
       data && typeof data === 'object' ? instanceToPlain(data) : { data };
-      
-    return this.jwtService.sign(payload as any, {
-      secret: JwtConfig.secret,
-      expiresIn: `${time}`,
-      algorithm: 'HS256',
-    } as any);
+
+    return this.jwtService.sign(
+      payload as any,
+      {
+        secret: JwtConfig.secret,
+        expiresIn: `${time}`,
+        algorithm: 'HS256',
+      } as any,
+    );
   }
 
-  async adminLogin(request: AdminLoginDto) {
-    const { email, password, user_type } = request;
-    const user = await this.userRepository.findOne({
-      where: { email, role: user_type },
-    });
+  async login(data: loginDto) {
+    const { phone } = data;
+    console.log('phone', phone);
+    let code = await this.codeService.generateOTP(phone, 'phone');
 
-    if (user && user.role === 'admin' && user.password === password) {
-      const token = await this.GenerateToken(instanceToPlain(user), '7d');
-      return {
-        success: 1,
-        message: 'common.auth.successful',
-        data: {
-          user: user,
-          token,
-        },
-      };
-    } else if (user) {
-      const isPasswordValid = await this.hashService.comparePassword(
-        password,
-        user.password,
-      );
-      if (!isPasswordValid) {
-        throw new UnauthorizedException({
-          success: 0,
-          message: 'common.auth.failed',
-        });
-      }
-      const token = await this.GenerateToken(instanceToPlain(user), '7d');
-      return {
-        success: 1,
-        message: 'common.auth.successful',
-        data: {
-          user: user,
-          token,
-        },
-      };
-    } else {
-      throw new UnauthorizedException({
-        success: 0,
-        message: 'common.auth.failed',
-      });
-    }
+    await this.textQueue.add('send-sms', { phone, code });
   }
+
+  // async adminLogin(request: AdminLoginDto) {
+  //   const { email, password, user_type } = request;
+  //   const user = await this.userRepository.findOne({
+  //     where: { email, role: user_type },
+  //   });
+
+  //   if (user && user.role === 'admin' && user.password === password) {
+  //     const token = await this.GenerateToken(instanceToPlain(user), '7d');
+  //     return {
+  //       success: 1,
+  //       message: 'common.auth.successful',
+  //       data: {
+  //         user: user,
+  //         token,
+  //       },
+  //     };
+  //   } else if (user) {
+  //     const isPasswordValid = await this.hashService.comparePassword(
+  //       password,
+  //       user.password,
+  //     );
+  //     if (!isPasswordValid) {
+  //       throw new UnauthorizedException({
+  //         success: 0,
+  //         message: 'common.auth.failed',
+  //       });
+  //     }
+  //     const token = await this.GenerateToken(instanceToPlain(user), '7d');
+  //     return {
+  //       success: 1,
+  //       message: 'common.auth.successful',
+  //       data: {
+  //         user: user,
+  //         token,
+  //       },
+  //     };
+  //   } else {
+  //     throw new UnauthorizedException({
+  //       success: 0,
+  //       message: 'common.auth.failed',
+  //     });
+  //   }
+  // }
 }

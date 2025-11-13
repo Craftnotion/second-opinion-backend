@@ -6,7 +6,9 @@ const app_key_provider = {
   },
 };
 const configuration = OneSignal.createConfiguration({
-  authMethods: {},
+  authMethods: {
+    
+  },
 });
 
 const client = new OneSignal.DefaultApi(configuration);
