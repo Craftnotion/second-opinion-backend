@@ -6,13 +6,14 @@ import {
   LoadEvent,
   RemoveEvent,
   UpdateEvent,
+  Like,
 } from 'typeorm';
 import slugify from 'slugify';
 import * as config from 'config';
+import { ConfigObject } from '@nestjs/config';
 import { FileService } from 'src/services/file/file.service';
-import { configObject } from 'src/types/types';
-import { DateTime } from 'luxon';
 
+const dbConfig = config.get<ConfigObject>('app');
 @EventSubscriber()
 export class CommonSubscriber implements EntitySubscriberInterface<any> {
   constructor(
@@ -22,47 +23,26 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
     this.dataSource.subscribers.push(this);
   }
 
-  getSlugField = (entity: any) => {
-    return entity?.first_name || entity?.name || entity?.title;
-  };
+  getSlugBase(entity: any) {
+    return (
+      entity?.title ||
+      entity?.name ||
+      entity?.full_name ||
+      entity?.email?.split('@')[0] ||
+      'user'
+    );
+  }
 
-  /**
-   * Called before User insertion.
-   */
   async beforeInsert(event: InsertEvent<any>) {
-    if (!event.entity) return;
+    // console.log('event',event)
+    if (!event?.entity) return;
 
-    const columns = event.metadata.columns.map((column) => column.propertyName);
+    const columns = event.metadata.columns.map((col) => col.propertyName);
 
     if (columns.includes('slug')) {
-      let slugField = this.getSlugField(event.entity);
-
-      let slug = slugify(slugField, { lower: true });
-
-      const manager = this.dataSource.manager;
-
-      const regexPattern = '^' + slug + '(-?\\d+)?$';
-
-      let count = await manager
-        .getRepository(event.metadata.target)
-        .createQueryBuilder()
-        .select('COUNT(id)', 'total_count')
-        .where('regexp_like(slug, :regex)', { regex: regexPattern })
-        .getCount();
-
-      if (count) {
-        slug = `${slug}-${count}`;
-      }
-      event.entity.slug = slug;
+      event.entity.slug = await this.createSlug(event);
     }
-
-    if (columns.includes('uuid')) {
-      event.entity.uuid = this.generateUuId('TXN');
-    }
-
-    if (!columns.includes('avatar')) return;
-
-    if (typeof event.entity.avatar === 'object') {
+    if (columns.includes('avatar') && typeof event.entity.avatar === 'object') {
       event.entity.avatar = await this.fileService.saveFile(
         event.entity.avatar,
         event.entity.avatar_path,
@@ -72,20 +52,27 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
     this.cleanEntity(event.entity);
   }
 
-  cleanEntity(entity: any) {
-    ['$avatar_path', '$avatar_url', '$avatar_default', '$private_file'].forEach(
-      (key) => delete entity[key],
-    );
-    return entity;
-  }
-
   async beforeUpdate(event: UpdateEvent<any>) {
-    const columns = event.metadata.columns.map((column) => column.propertyName);
+    if (!event?.entity) return;
+
+    const columns = event.metadata.columns.map((col) => col.propertyName);
+
+    if (
+      columns.includes('slug') &&
+      (event.entity.full_name !== event.databaseEntity?.full_name ||
+        event.entity.title !== event.databaseEntity?.title)
+    ) {
+      event.entity.slug = await this.createSlug(event);
+    }
 
     if (!columns.includes('avatar')) return;
 
-    if (event?.entity?.avatar !== event.databaseEntity.avatar)
-      await this.deleteFile(event.databaseEntity.avatar);
+    if (
+      event?.entity?.avatar &&
+      event?.entity?.avatar !== event?.databaseEntity?.avatar
+    ) {
+      await this.deleteFile(event?.databaseEntity?.avatar);
+    }
 
     if (typeof event?.entity?.avatar === 'object') {
       event.entity.avatar = await this.fileService.saveFile(
@@ -98,32 +85,71 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
   }
 
   async afterInsert(event: InsertEvent<any>) {
-    const columns = event.metadata.columns.map((column) => column.propertyName);
+    const columns = event.metadata.columns.map((col) => col.propertyName);
 
-    if (!columns.includes('avatar')) return;
+    if (columns.includes('slug')) {
+      const slugBase = this.getSlugBase(event.entity);
+      const newSlug = slugify(`${slugBase}-${event.entity.id}`, {
+        lower: true,
+      });
 
-    await this.handleImageProcessing(event.entity);
+      await event.manager
+        .getRepository(event.metadata.target)
+        .update({ id: event.entity.id }, { slug: newSlug });
+
+      event.entity.slug = newSlug;
+    }
+
+    if (columns.includes('avatar')) {
+      await this.handleImageProcessing(event.entity);
+    }
   }
 
   async afterUpdate(event: UpdateEvent<any>) {
-    const columns = event.metadata.columns.map((column) => column.propertyName);
+    if (!event?.entity) return;
 
-    if (!columns.includes('avatar') || !event.entity) return;
+    const columns = event.metadata.columns.map((col) => col.propertyName);
 
-    event.entity.PRIVATE_FILE = event.databaseEntity.PRIVATE_FILE;
+    if (!columns.includes('avatar')) return;
 
+    event.entity.PRIVATE_FILE = event?.databaseEntity?.PRIVATE_FILE;
     await this.handleImageProcessing(event.entity);
   }
 
   async afterRemove(event: RemoveEvent<any>) {
-    const columns = event.metadata.columns.map((column) => column.propertyName);
+    const columns = event.metadata.columns.map((col) => col.propertyName);
     if (!columns.includes('avatar')) return;
-    typeof event?.entity?.avatar === 'string' &&
-      (await this.deleteFile(event?.entity?.avatar));
+
+    if (typeof event?.entity?.avatar === 'string') {
+      await this.deleteFile(event.entity.avatar);
+    }
+  }
+
+  async afterLoad(entity: any, event: LoadEvent<any>) {
+    const columns = event.metadata.columns.map((col) => col.propertyName);
+    if (!columns.includes('avatar')) return;
+    await this.handleImageProcessing(entity);
+    if (columns.includes('dob')) {
+      const date = entity?.dob?.toISOString().split('T')[0];
+      entity.dob = date;
+      return date;
+    }
+  }
+
+  cleanEntity(entity: any) {
+    [
+      '\$avatar_path',
+      '\$avatar_url',
+      '\$avatar_default',
+      '\$private_file',
+    ].forEach((key) => delete entity[key]);
+    return entity;
   }
 
   async deleteFile(image?: string | null | Express.Multer.File) {
-    image && typeof image === 'string' && this.fileService.destroyFile(image);
+    if (image && typeof image === 'string') {
+      await this.fileService.destroyFile(image);
+    }
   }
 
   async handleImageProcessing(entity: any) {
@@ -132,64 +158,30 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
       return;
     }
 
-    if (config.get<configObject>('storage').disk === 'local') {
-      entity.avatar_url = `${config.get<configObject>('app').url}/${entity.avatar}`;
-    } else if (entity.PRIVATE_FILE && typeof entity.avatar === 'string') {
-      entity.avatar_url = await this.fileService.generateSignedUrl(
-        entity.avatar,
-      );
-    } else {
-      entity.avatar_url = `${config.get<configObject>('aws').endpoint}/${entity.avatar}`;
+    const diskType = 'local';
+    const appUrl = dbConfig.local; // Replace with your app URL
+
+    if (diskType === 'local') {
+      entity.avatar_url = `${appUrl}/${entity.avatar}`;
     }
   }
 
-  async afterLoad(entity: any, event: LoadEvent<any>) {
-    const columns = event.metadata.columns.map((column) => column.propertyName);
+  async createSlug(
+    event: InsertEvent<any> | UpdateEvent<any>,
+  ): Promise<string> {
+    const slugBase = this.getSlugBase(event.entity);
+    let base = slugify(slugBase, { lower: true });
 
-    for (let column of columns) {
-      if (
-        (column.includes('_date') || column.includes('_at')) &&
-        entity[column]
-      ) {
-        const date = DateTime.fromJSDate(entity[column]);
-        const dayWithOrdinal = date.day + this.getOrdinalSuffix(date.day);
-        entity[`$formatted_${column}`] =
-          `${dayWithOrdinal} ${date.toFormat(config.get<string>('date_format') || 'LLL yy')}`;
-      }
+    const manager = this.dataSource.manager;
+
+    const count = await manager.getRepository(event.metadata.target).count({
+      where: { slug: Like(`${base}%`) },
+    });
+
+    if (count) {
+      base = `${base}-${count}`;
     }
 
-    await this.handleImageProcessing(entity);
-  }
-
-  getOrdinalSuffix(day: number): string {
-    if (day > 3 && day < 21) return 'th'; // 4th - 20th are always 'th'
-    switch (day % 10) {
-      case 1:
-        return 'st';
-      case 2:
-        return 'nd';
-      case 3:
-        return 'rd';
-      default:
-        return 'th';
-    }
-  }
-
-  generateUuId(tableName: string) {
-    let prefixName = tableName;
-
-    // Get the current timestamp in milliseconds
-    const timestamp = Date.now();
-
-    // Generate a random number from 0 to 99999
-    const randomPart = Math.floor(Math.random() * 100000);
-
-    // Combine timestamp and random part, then take modulo 100000 to ensure it's within 5 digits
-    const uniqueNumber = (timestamp + randomPart) % 100000;
-
-    // Format to ensure it's a 5-digit number (pad with zeros if necessary)
-    let uuid = uniqueNumber.toString().padStart(5, '0');
-
-    return `#${prefixName}${uuid}`;
+    return base;
   }
 }

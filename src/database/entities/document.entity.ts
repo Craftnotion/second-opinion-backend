@@ -1,8 +1,14 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
-import { Document } from './document.entity';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Requests } from './request.entity';
 
-@Entity('requests')
-export class Requests {
+@Entity('document')
+export class Document {
   // Internal avatar helpers
   private $avatar_path: string = 'uploads/avatars/users';
   private $avatar_url: string | null = null;
@@ -37,23 +43,8 @@ export class Requests {
   @PrimaryGeneratedColumn('increment')
   id: number;
 
-  @Column({ type: 'int' })
-  user_id: number;
-
-  @Column({ type: 'varchar', nullable: true })
-  specialty: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  request: string | null;
-
-  @Column({ type: 'varchar', nullable: true })
-  urgency: string | null;
-
-  @Column({ type: 'decimal', nullable: true })
-  cost: number | null;
-
-  @Column({ type: 'varchar', default: 'pending' })
-  status: string;
+  @Column()
+  request_id: number;
 
   @Column({ type: 'varchar', nullable: true })
   avatar: string | Express.Multer.File | null;
@@ -61,13 +52,10 @@ export class Requests {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @Column({
-    type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
-  })
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;
 
-  @OneToMany(() => Document, (document) => document.request)
-  documents: Document[];
+  @ManyToOne(() => Requests, (request) => request.documents)
+  @JoinColumn({ name: 'request_id' })
+  request: Request;
 }

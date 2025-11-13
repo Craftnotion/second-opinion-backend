@@ -43,11 +43,18 @@ export class AuthService {
     );
   }
 
-  async login(data: loginDto) {
+  async login(data: loginDto, type: string) {
     const { phone, otp } = data;
-    const user = await this.userRepository.findOne({
-      where: { phone },
-    });
+    let user;
+    if (type === 'user') {
+      user = await this.userRepository.findOne({
+        where: { phone, role: 'user' },
+      });
+    } else {
+      user = await this.userRepository.findOne({
+        where: { phone, role: 'admin' },
+      });
+    }
 
     if (!user) {
       const user = new User();

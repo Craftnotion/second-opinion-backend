@@ -20,6 +20,8 @@ import {
   QueryResolver,
 } from 'nestjs-i18n';
 import { join } from 'path';
+import { FileService } from './services/file/file.service';
+import { CommonSubscriber } from './database/subscribers/common.subscriber';
 
 @Module({
   imports: [
@@ -70,6 +72,8 @@ import { join } from 'path';
     AppService,
     HashService,
     StringService,
+    FileService,
+    CommonSubscriber,
     {
       provide: 'doctor',
       useFactory: () => {

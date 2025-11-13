@@ -4,6 +4,7 @@ import {
   Get,
   Post,
   Put,
+  Query,
   Req,
   UploadedFile,
   UploadedFiles,
@@ -19,9 +20,14 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from '@nestjs/platform-express';
+import { filterDto } from '../utils/param-filter.dto';
 
 @Controller('user')
 @ApiTags('User')
@@ -43,13 +49,34 @@ export class UserController {
   @ApiBody({ type: requestDto })
   @UseGuards(JwtGuard)
   @ApiBearerAuth('authorization')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'audioFile', maxCount: 1 },
+      { name: 'documents', maxCount: 10 },
+    ]),
+  )
   @Post('requests')
-  @UseInterceptors(FileInterceptor('avatar'))
   async createRequest(
     @Req() req: LoginRequest,
     @Body() requestDto: requestDto,
-    @UploadedFile() avatar: Express.Multer.File,
+    @UploadedFiles()
+    files: {
+      audioFile: Express.Multer.File[];
+      documents: Express.Multer.File[];
+    },
   ) {
-    return await this.userService.requests(req, requestDto, avatar);
+    return await this.userService.requests(req, requestDto, files);
+  }
+
+  @Get('requests')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth('authorization')
+  @ApiOperation({ summary: 'getting all requests' })
+  @ApiQuery({ type: filterDto })
+  async getRequests(
+    @Query() paramsFilter: filterDto,
+    @Req() req: LoginRequest,
+  ) {
+    return await this.userService.getRequests(paramsFilter, req);
   }
 }

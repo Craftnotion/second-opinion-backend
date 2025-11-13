@@ -8,7 +8,7 @@ frontend:
   base_url: http://localhost:3000
 
 app:
-  url:   http://localhost:3001
+  local: http://192.168.0.19:3001
 
 organisation:
   has_organisation: true

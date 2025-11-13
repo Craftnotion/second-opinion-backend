@@ -17,8 +17,6 @@ async function getDataSource(): Promise<DataSource> {
     );
 
     const configService = app.get(ConfigService);
-
-    console.log(configService.get<any>('TYPEORM_CONNECTION'))
     return new DataSource({
         type: configService.get<any>('TYPEORM_CONNECTION'),
         host: configService.get<string>('TYPEORM_HOST'),

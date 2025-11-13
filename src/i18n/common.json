@@ -8,5 +8,8 @@
   },
   "profile": {
     "uptodate": "Your profile is already up to date."
+  },
+  "requests": {
+    "fetched": "Requests fetched successfully."
   }
 }
