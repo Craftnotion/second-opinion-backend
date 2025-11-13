@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Put,
   Query,
@@ -78,5 +79,13 @@ export class UserController {
     @Req() req: LoginRequest,
   ) {
     return await this.userService.getRequests(paramsFilter, req);
+  }
+
+  @Get('request/:id')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth('authorization')
+  @ApiOperation({ summary: 'getting request by id' })
+  async getRequestById(@Req() req: LoginRequest, @Param('id') id: number) {
+    return await this.userService.getRequestDetails(id, req);
   }
 }

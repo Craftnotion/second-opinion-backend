@@ -23,7 +23,7 @@ export class AuthController {
   })
   @UseInterceptors(ClassSerializerInterceptor)
   @Post('login')
-  async adminLogin(@Body() body: loginDto, @Query('type') type: string) {
-    return await this.authService.login(body, type);
+  async adminLogin(@Body() body: loginDto) {
+    return await this.authService.login(body);
   }
 }

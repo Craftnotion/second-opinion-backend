@@ -12,6 +12,7 @@ import slugify from 'slugify';
 import * as config from 'config';
 import { ConfigObject } from '@nestjs/config';
 import { FileService } from 'src/services/file/file.service';
+import { DateTime, Duration } from 'luxon';
 
 const dbConfig = config.get<ConfigObject>('app');
 @EventSubscriber()
@@ -133,6 +134,73 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
       const date = entity?.dob?.toISOString().split('T')[0];
       entity.dob = date;
       return date;
+    }
+
+    for (let column of columns) {
+      if (
+        (column.includes('_date') ||
+          column.includes('_at') ||
+          column.includes('claimed_on')) &&
+        entity[column]
+      ) {
+        const date = DateTime.fromJSDate(entity[column]);
+        const dayWithOrdinal = date.day + this.getOrdinalSuffix(date.day);
+        entity[`$formatted_${column}`] =
+          `${dayWithOrdinal} ${date.toFormat(config.get<string>('date_format') || 'LLL yy')}`;
+      }
+
+      if (column.includes('_time') && entity[column]) {
+        const time = DateTime.fromFormat(entity[column], 'HH:mm:ss');
+        entity[`$formatted_${column}`] = time.toFormat('hh:mm a');
+      }
+
+      if (column.includes('duration') && entity[column]) {
+        const parts = entity[column].split(':');
+        const hours = Number(parts[0] || 0);
+        const minutes = Number(parts[1] || 0);
+        const seconds = Number(parts[2] || 0);
+
+        const duration = Duration.fromObject({
+          hours: Number.isFinite(hours) ? hours : 0,
+          minutes: Number.isFinite(minutes) ? minutes : 0,
+          seconds: Number.isFinite(seconds) ? seconds : 0,
+        });
+
+        entity[`$formatted_${column}`] =
+          `${duration.hours}h ${duration.minutes}m`;
+      }
+      if (column.includes('avgWorkHrs') && entity[column]) {
+        const parts = entity[column].split(':');
+        const hours = Number(parts[0] || 0);
+        const minutes = Number(parts[1] || 0);
+        const seconds = Number(parts[2] || 0);
+
+        const duration = Duration.fromObject({
+          hours: Number.isFinite(hours) ? hours : 0,
+          minutes: Number.isFinite(minutes) ? minutes : 0,
+          seconds: Number.isFinite(seconds) ? seconds : 0,
+        });
+
+        entity[`$formatted_${column}`] =
+          `${duration.hours}h ${duration.minutes}m`;
+      }
+      if (column.includes('status') && entity[column]) {
+        entity[column] = entity[column].replace('_', ' ');
+      }
+    }
+  }
+
+  getOrdinalSuffix(day: number): string {
+    if (day > 3 && day < 21) return 'th'; // 4th - 20th are always 'th'
+    switch (day % 10) {
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
     }
   }
 

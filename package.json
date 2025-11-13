@@ -59,6 +59,7 @@
     "lodash": "^4.17.21",
     "luxon": "^3.5.0",
     "mysql2": "^3.10.1",
+    "nanoid": "^5.1.6",
     "nestjs-i18n": "^10.4.5",
     "nestjs-typeorm-paginate": "^4.0.4",
     "nodemailer": "^6.9.14",

@@ -43,8 +43,8 @@ export class AuthService {
     );
   }
 
-  async login(data: loginDto, type: string) {
-    const { phone, otp } = data;
+  async login(data: loginDto) {
+    const { phone, otp, type } = data;
     let user;
     if (type === 'user') {
       user = await this.userRepository.findOne({
@@ -57,6 +57,7 @@ export class AuthService {
     }
 
     if (!user) {
+      console.log('Creating user');
       const user = new User();
       user.phone = phone;
       user.role = 'user';

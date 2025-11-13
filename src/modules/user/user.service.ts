@@ -9,6 +9,7 @@ import { Requests } from 'src/database/entities/request.entity';
 import { Document } from 'src/database/entities/document.entity';
 import { filterDto } from '../utils/param-filter.dto';
 import { paginate } from 'nestjs-typeorm-paginate';
+import { UniqueIdGenerator } from 'src/services/uid-generator/uid-generator.service';
 
 @Injectable()
 export class UserService {
@@ -20,6 +21,7 @@ export class UserService {
     @InjectRepository(Document)
     private readonly documentRepository: Repository<Document>,
     private readonly authService: AuthService,
+    private readonly uidGenerator: UniqueIdGenerator,
   ) {}
 
   async update(req: LoginRequest, requestDto: requestDto) {
@@ -50,6 +52,7 @@ export class UserService {
     requests.request = request || null;
     requests.cost = cost ? parseFloat(cost) : null;
     requests.avatar = avatar.audioFile[0];
+    requests.uid = this.uidGenerator.generateRequestId();
     await this.requestsRepository.save(requests);
 
     for (const file of avatar.documents) {
@@ -63,19 +66,22 @@ export class UserService {
   }
 
   async getRequests(paramsFilter: filterDto, req: LoginRequest) {
-    console.log('paramsFilter', paramsFilter);
-    const data = this.requestsRepository
-      .createQueryBuilder('requests')
-      .where('requests.user_id = :user_id', { user_id: req.user.id });
-
+    let data;
+    if (req.user.role === 'admin') {
+      data = this.requestsRepository.createQueryBuilder('requests');
+    } else {
+      data = this.requestsRepository
+        .createQueryBuilder('requests')
+        .where('requests.user_id = :user_id', { user_id: req.user.id });
+    }
     if (paramsFilter.search) {
       data.where(
-        'requests.specialty ILIKE :search OR requests.urgency ILIKE :search OR requests.request ILIKE :search',
+        'requests.specialty LIKE :search OR requests.urgency LIKE :search OR requests.request LIKE :search',
         { search: `%${paramsFilter.search}%` },
       );
     }
     if (paramsFilter.status) {
-      data.andWhere('requests.status := status', {
+      data.andWhere('requests.status = :status', {
         status: paramsFilter.status,
       });
     }
@@ -90,5 +96,28 @@ export class UserService {
     };
   }
 
-  
+  async getRequestById(id: number) {
+    return await this.requestsRepository.findOne({ where: { id } });
+  }
+
+  async updateRequestStatus(id: number) {
+    const request = await this.requestsRepository.findOne({ where: { id } });
+    if (!request) {
+      return { success: 0, message: 'Request not found' };
+    }
+    request.status = 'completed';
+    await this.requestsRepository.save(request);
+    return { success: 1, message: 'Request status updated successfully' };
+  }
+
+  async getRequestDetails(id: number, req: LoginRequest) {
+    const request = await this.requestsRepository.findOne({
+      where: { id },
+      relations: ['documents', 'opinion', 'opinion.opinionDocuments'],
+    });
+    if (!request) {
+      return { success: 0, message: 'Request not found' };
+    }
+    return { success: 1, message: 'Request details fetched', data: request };
+  }
 }

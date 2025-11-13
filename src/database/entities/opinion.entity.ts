@@ -1,15 +1,17 @@
+import { Multer } from 'multer';
 import {
   Column,
   Entity,
+  JoinColumn,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Document } from './document.entity';
-import { Opinion } from './opinion.entity';
+import { Requests } from './request.entity';
+import { opinionDocument } from './opinion-document.entity';
 
-@Entity('requests')
-export class Requests {
+@Entity('opinion')
+export class Opinion {
   // Internal avatar helpers
   private $avatar_path: string = 'uploads/avatars/users';
   private $avatar_url: string | null = null;
@@ -17,6 +19,7 @@ export class Requests {
   private $private_file: boolean = true;
 
   set avatar_url(value: string | null) {
+    console.log('setting avatar url to', value);
     this.$avatar_url = value;
   }
 
@@ -40,29 +43,23 @@ export class Requests {
     this.$private_file = value;
   }
 
-  @PrimaryGeneratedColumn('increment')
+  @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'int' })
-  user_id: number;
+  @Column()
+  request_id: number;
 
   @Column({ type: 'varchar', nullable: true })
-  specialty: string | null;
+  specialist_name: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  qualification: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  hospital: string;
 
   @Column({ type: 'text', nullable: true })
-  request: string | null;
-
-  @Column({ type: 'varchar', nullable: true })
-  urgency: string | null;
-
-  @Column({ type: 'decimal', nullable: true })
-  cost: number | null;
-
-  @Column({ type: 'varchar', default: 'pending' })
-  status: string;
-
-  @Column({ type: 'varchar' })
-  uid: string;
+  summary: string;
 
   @Column({ type: 'varchar', nullable: true })
   avatar: string | Express.Multer.File | null;
@@ -70,16 +67,16 @@ export class Requests {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @Column({
-    type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
-  })
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;
 
-  @OneToMany(() => Document, (document) => document.request)
-  documents: Document[];
+  @OneToOne(() => Requests, (request) => request.opinion)
+  @JoinColumn({ name: 'request_id' })
+  request: Requests;
 
-  @OneToOne(() => Opinion, (opinion) => opinion.request)
-  opinion: Opinion;
+  @OneToMany(
+    () => opinionDocument,
+    (opinionDocument) => opinionDocument.Opinion,
+  )
+  opinionDocuments: opinionDocument[];
 }

@@ -7,4 +7,7 @@ export class loginDto {
   @IsString()
   @IsOptional()
   otp?: string;
+
+  @IsString()
+  type: string;
 }

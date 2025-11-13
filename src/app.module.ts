@@ -22,6 +22,7 @@ import {
 import { join } from 'path';
 import { FileService } from './services/file/file.service';
 import { CommonSubscriber } from './database/subscribers/common.subscriber';
+import { UniqueIdGenerator } from './services/uid-generator/uid-generator.service';
 
 @Module({
   imports: [

@@ -18,7 +18,7 @@ export default class AdminSeed implements Seeder {
         email: adminEmail,
         password: adminPassword,
         role: 'admin',
-        status: 'active',
+        location: 'active',
       });
       await userRepository.save(adminUser);
       console.log('Admin user created with email:', adminEmail);
