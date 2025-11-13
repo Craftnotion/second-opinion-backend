@@ -7,10 +7,11 @@ import {
   ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { ApiBody, ApiConsumes, ApiOperation } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { loginDto } from './dto/login.dto';
 
 @Controller('auth')
+@ApiTags('Auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

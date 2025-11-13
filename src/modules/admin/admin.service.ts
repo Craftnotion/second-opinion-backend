@@ -11,34 +11,4 @@ export class AdminService {
     private readonly userService: UserService,
     private readonly hashService: HashService,
   ) {}
-
-  async createUser(body: CreateUserDto, file?: Express.Multer.File) {
-    const { full_name, email, phone } = body;
-    const existingUser = await this.userService.findOne({
-      where: { email: body.email },
-    });
-
-    if (existingUser) {
-      return {
-        success: 0,
-        message: 'Employee with this email already exists',
-      };
-    }
-
-    const url = dbConfig.getUrl;
-    const newUser = await this.userService.create({
-      full_name: full_name,
-      email: email,
-      phone: phone,
-      role: 'employee',
-    });
-    console.log('newUser', newUser);
-    // await this.authService.employeeInvite(newUser);
-
-    return {
-      success: 1,
-      message: 'common.employee.created',
-      data: newUser,
-    };
-  }
 }

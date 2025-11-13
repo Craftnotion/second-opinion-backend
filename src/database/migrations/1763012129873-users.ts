@@ -7,8 +7,7 @@ export class Users1763012129873 implements MigrationInterface {
       new TableColumn({
         name: 'location',
         type: 'varchar',
-        isNullable: false,
-        default: false,
+        isNullable: true,
       }),
     );
   }

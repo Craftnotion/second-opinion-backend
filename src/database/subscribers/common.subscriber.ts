@@ -11,7 +11,7 @@ import slugify from 'slugify';
 import * as config from 'config';
 import { FileService } from 'src/services/file/file.service';
 import { configObject } from 'src/types/types';
-import { DateTime, Duration } from 'luxon';
+import { DateTime } from 'luxon';
 
 @EventSubscriber()
 export class CommonSubscriber implements EntitySubscriberInterface<any> {
@@ -23,14 +23,7 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
   }
 
   getSlugField = (entity: any) => {
-    return (
-      entity?.full_name ||
-      entity?.first_name ||
-      entity?.name ||
-      entity?.title ||
-      entity?.phone ||
-      entity?.category_name
-    );
+    return entity?.first_name || entity?.name || entity?.title;
   };
 
   /**
@@ -102,7 +95,6 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
     }
 
     this.cleanEntity(event.entity);
-
   }
 
   async afterInsert(event: InsertEvent<any>) {
@@ -156,49 +148,13 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
 
     for (let column of columns) {
       if (
-        (column.includes('_date') ||
-          column.includes('_at') ||
-          column.includes('claimed_on')) &&
+        (column.includes('_date') || column.includes('_at')) &&
         entity[column]
       ) {
         const date = DateTime.fromJSDate(entity[column]);
         const dayWithOrdinal = date.day + this.getOrdinalSuffix(date.day);
         entity[`$formatted_${column}`] =
           `${dayWithOrdinal} ${date.toFormat(config.get<string>('date_format') || 'LLL yy')}`;
-      }
-
-      if (column.includes('_time') && entity[column]) {
-        const time = DateTime.fromFormat(entity[column], 'HH:mm:ss');
-        entity[`$formatted_${column}`] = time.toFormat('hh:mm a');
-      }
-
-      if (column.includes('duration') && entity[column]) {
-        const parts = entity[column].split(':');
-        const hours = Number(parts[0] || 0);
-        const minutes = Number(parts[1] || 0);
-        const seconds = Number(parts[2] || 0);
-
-        const duration = Duration.fromObject({
-          hours: Number.isFinite(hours) ? hours : 0,
-          minutes: Number.isFinite(minutes) ? minutes : 0,
-          seconds: Number.isFinite(seconds) ? seconds : 0,
-        });
-
-        entity[`$formatted_${column}`] = `${duration.hours}h ${duration.minutes}m`;
-      }
-      if (column.includes('avgWorkHrs') && entity[column]) {
-        const parts = entity[column].split(':');
-        const hours = Number(parts[0] || 0);
-        const minutes = Number(parts[1] || 0);
-        const seconds = Number(parts[2] || 0);
-
-        const duration = Duration.fromObject({
-          hours: Number.isFinite(hours) ? hours : 0,
-          minutes: Number.isFinite(minutes) ? minutes : 0,
-          seconds: Number.isFinite(seconds) ? seconds : 0,
-        });
-
-        entity[`$formatted_${column}`] = `${duration.hours}h ${duration.minutes}m`;
       }
     }
 

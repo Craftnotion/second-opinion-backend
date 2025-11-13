@@ -12,6 +12,9 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { CodeService } from 'src/services/code/code.service';
 import { loginDto } from './dto/login.dto';
+import { requestDto } from '../user/dto/request.dto';
+import { LoginRequest } from 'src/types/request';
+import e from 'express';
 const JwtConfig = config.get<configObject>('jwt');
 @Injectable()
 export class AuthService {
@@ -41,54 +44,73 @@ export class AuthService {
   }
 
   async login(data: loginDto) {
-    const { phone } = data;
-    console.log('phone', phone);
-    let code = await this.codeService.generateOTP(phone, 'phone');
+    const { phone, otp } = data;
+    const user = await this.userRepository.findOne({
+      where: { phone },
+    });
 
-    await this.textQueue.add('send-sms', { phone, code });
+    if (!user) {
+      const user = new User();
+      user.phone = phone;
+      user.role = 'user';
+      await this.userRepository.save(user);
+    }
+    if (!otp) {
+      let code = await this.codeService.generateOTP(phone, 'phone');
+      await this.textQueue.add('send-sms', { phone, code });
+      return {
+        success: 2,
+        message: 'common.auth.login.send_otp',
+        data: code,
+      };
+    }
+    const isCodeValid = await this.codeService.verifyOTP(phone, otp, 'phone');
+    if (!isCodeValid) {
+      return {
+        success: 0,
+        message: 'common.auth.failed',
+      };
+    }
+    const token = await this.GenerateToken(instanceToPlain(user), '7d');
+    return {
+      success: 1,
+      message: 'common.auth.login.successful',
+      data: {
+        user: user,
+        token,
+      },
+    };
   }
 
-  // async adminLogin(request: AdminLoginDto) {
-  //   const { email, password, user_type } = request;
-  //   const user = await this.userRepository.findOne({
-  //     where: { email, role: user_type },
-  //   });
+  async update(req: LoginRequest, requestDto: requestDto) {
+    const { email, full_name, phone, location } = requestDto;
+    const customer = await this.userRepository.findOneOrFail({
+      where: { id: req.user.id },
+    });
+    customer?.email === null ||
+      customer?.full_name === null ||
+      customer?.phone === null ||
+      customer?.location === null;
 
-  //   if (user && user.role === 'admin' && user.password === password) {
-  //     const token = await this.GenerateToken(instanceToPlain(user), '7d');
-  //     return {
-  //       success: 1,
-  //       message: 'common.auth.successful',
-  //       data: {
-  //         user: user,
-  //         token,
-  //       },
-  //     };
-  //   } else if (user) {
-  //     const isPasswordValid = await this.hashService.comparePassword(
-  //       password,
-  //       user.password,
-  //     );
-  //     if (!isPasswordValid) {
-  //       throw new UnauthorizedException({
-  //         success: 0,
-  //         message: 'common.auth.failed',
-  //       });
-  //     }
-  //     const token = await this.GenerateToken(instanceToPlain(user), '7d');
-  //     return {
-  //       success: 1,
-  //       message: 'common.auth.successful',
-  //       data: {
-  //         user: user,
-  //         token,
-  //       },
-  //     };
-  //   } else {
-  //     throw new UnauthorizedException({
-  //       success: 0,
-  //       message: 'common.auth.failed',
-  //     });
-  //   }
-  // }
+    if (email) {
+      customer.email = email;
+    }
+
+    customer.full_name = full_name;
+
+    customer.phone = phone;
+
+    customer.location = location;
+
+    await this.userRepository.save(customer);
+    const token = await this.GenerateToken(instanceToPlain(customer), '7d');
+    return {
+      success: 1,
+      message: 'common.profile.uptodate',
+      data: {
+        user: customer,
+        token,
+      },
+    };
+  }
 }

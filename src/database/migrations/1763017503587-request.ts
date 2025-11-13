@@ -1,10 +1,10 @@
 import { MigrationInterface, QueryRunner, Table } from 'typeorm';
 
-export class Users1762921363743 implements MigrationInterface {
+export class Request1763017503587 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
-        name: 'users',
+        name: 'requests',
         columns: [
           {
             name: 'id',
@@ -14,27 +14,40 @@ export class Users1762921363743 implements MigrationInterface {
             generationStrategy: 'increment',
           },
           {
-            name: 'full_name',
+            name: 'user_id',
+            type: 'int',
+            isNullable: false,
+          },
+          {
+            name: 'specialty',
             type: 'varchar',
             isNullable: true,
           },
           {
-            name: 'email',
-            type: 'varchar',
+            name: 'request',
+            type: 'text',
             isNullable: true,
-            isUnique: true,
           },
           {
-            name: 'phone',
+            name: 'urgency',
             type: 'varchar',
             isNullable: true,
-            isUnique: true,
           },
           {
-            name: 'role',
+            name: 'cost',
+            type: 'decimal',
+            isNullable: true,
+          },
+          {
+            name: 'status',
             type: 'varchar',
             isNullable: false,
-            default: `'user'`,
+            default: "'pending'",
+          },
+          {
+            name: 'avatar',
+            type: 'varchar',
+            isNullable: true,
           },
           {
             name: 'created_at',
@@ -52,7 +65,5 @@ export class Users1762921363743 implements MigrationInterface {
     );
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropTable('users');
-  }
+  public async down(queryRunner: QueryRunner): Promise<void> {}
 }

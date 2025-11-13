@@ -13,7 +13,7 @@ export class User {
   id: number;
 
   @Column({ type: 'varchar' })
-  full_name: string;
+  full_name: string | null;
 
   @Column({ unique: true })
   slug: string;
@@ -26,6 +26,9 @@ export class User {
 
   @Column({ type: 'varchar', default: 'user' })
   role: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  location: string | null;
 
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;
