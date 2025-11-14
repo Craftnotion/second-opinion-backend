@@ -105,7 +105,7 @@ export class AuthService {
     customer.phone = phone;
     customer.location = location;
 
-    if (email) {
+    if (email && email !== customer.email) {
       console.log('email provided');
 
       if (otp) {

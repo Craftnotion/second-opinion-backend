@@ -9,6 +9,7 @@ import { Opinion } from 'src/database/entities/opinion.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { opinionDocument } from 'src/database/entities/opinion-document.entity';
+import { MailService } from 'src/services/email/email.service';
 const dbConfig = config.get<{ [key: string]: string }>('app');
 
 @Injectable()
@@ -20,6 +21,7 @@ export class AdminService {
     private readonly opinionRepository: Repository<Opinion>,
     @InjectRepository(opinionDocument)
     private readonly opinionDocumentRepository: Repository<opinionDocument>,
+    private readonly mailService: MailService,
   ) {}
 
   async getRequests(paramsFilter: filterDto, req: LoginRequest) {
@@ -36,6 +38,7 @@ export class AdminService {
     const { specialistName, qualification, hospital, summary, requestId } =
       data;
     const request = await this.userService.getRequestById(requestId);
+    console.log('request', request);
     if (!request) {
       return { success: 0, message: 'Request not found' };
     } else if (request.status === 'completed') {
@@ -61,6 +64,12 @@ export class AdminService {
       await this.opinionDocumentRepository.save(document);
     }
     await this.userService.updateRequestStatus(request.slug);
+    await this.mailService.opinionCreated({
+      email: request.user.email ?? '',
+      user_name: request.user.full_name ?? 'User',
+      request: request.request ?? '',
+      url: `${dbConfig.frontend_url}/user/requests/${request.slug}`,
+    });
     return { success: 1, message: 'Opinion created successfully' };
   }
 

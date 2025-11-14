@@ -9,8 +9,6 @@ export class MailQueueConsumer extends WorkerHost {
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
-    // delegate processing to MailService.handleJob which contains
-    // the formatting and actual send logic
     await this.EmailService.handleJob(job.data);
   }
 }

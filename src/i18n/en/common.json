@@ -1,19 +1,17 @@
 {
-  "common": {
-    "auth": {
-      "login": {
-        "send_otp": "OTP sent",
-        "successful": "Login successful"
-      },
-      "failed": "Authentication failed"
+  "auth": {
+    "login": {
+      "send_otp": "An OTP has been sent to the registered phone number",
+      "successful": "User has Logeed in successful"
     },
-    "profile": {
-      "uptodate": "Profile updated"
-    }
+    "failed": "Authentication failed"
+  },
+  "profile": {
+    "uptodate": "Users Profile has been updated successfully"
   },
   "email": {
     "otp": {
-      "subject": "Your verification code",
+      "subject": "An OTP has been sent to the registered email",
       "body": "Your OTP code is {{otp}}"
     },
     "greet": "Hello",

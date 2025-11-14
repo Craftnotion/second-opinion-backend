@@ -48,7 +48,7 @@ export class AdminController {
     return await this.adminService.getRequests(paramsFilter, req);
   }
 
-  @ApiOperation({ summary: 'creating a request' })
+  @ApiOperation({ summary: 'creating an opinion for the request' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: OpinionDto })
   @UseGuards(JwtGuard)
@@ -60,7 +60,7 @@ export class AdminController {
     ]),
   )
   @Post('opinion')
-  async createRequest(
+  async createOpinion(
     @Body() opinionDto: OpinionDto,
     @UploadedFiles()
     files: {

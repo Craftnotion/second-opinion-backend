@@ -125,7 +125,7 @@ export class UserService {
   }
 
   async getRequestById(id: string) {
-    return await this.requestsRepository.findOne({ where: { slug: id } });
+    return await this.requestsRepository.findOne({ where: { slug: id } ,relations: ['user']});
   }
 
   async updateRequestStatus(id: string) {
@@ -141,13 +141,13 @@ export class UserService {
   }
 
   async getRequestDetails(id: string, req: LoginRequest) {
-    let relations = [];
+    let relations = ['documents', 'opinion', 'opinion.opinionDocuments'];
     if (req.user.role === 'admin') {
-      relations = ['documents', 'opinion', 'opinion.opinionDocuments', 'users'];
+      relations = ['documents', 'opinion', 'opinion.opinionDocuments', 'user'];
     }
     const request = await this.requestsRepository.findOne({
       where: { slug: id },
-      relations: ['documents', 'opinion', 'opinion.opinionDocuments'],
+      relations: relations,
     });
     if (!request) {
       return { success: 0, message: 'Request not found' };

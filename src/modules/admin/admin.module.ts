@@ -8,12 +8,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { Opinion } from 'src/database/entities/opinion.entity';
 import { opinionDocument } from 'src/database/entities/opinion-document.entity';
+import { MailQueueModule } from 'src/queue/email-queue/email-queue.module';
 
 @Module({
   imports: [
     UserModule,
     AuthModule,
     TypeOrmModule.forFeature([User, Opinion, opinionDocument]),
+    MailQueueModule,
   ],
   controllers: [AdminController],
   providers: [AdminService, HashService],

@@ -69,7 +69,25 @@ export class MailService {
     );
   }
 
-  // called by the queue consumer to actually format and send the email
+  public async opinionCreated(data: {
+    email: string;
+    user_name: string;
+    request: string;
+    url?: string;
+  }) {
+    await this.queue.add(
+      'send-email',
+      {
+        type: 'opinion-created',
+        email: data.email,
+        user_name: data.user_name,
+        request: data.request,
+        url: data.url,
+      },
+      { attempts: 3, removeOnComplete: true },
+    );
+  }
+
   public async handleJob(data: any) {
     const type: string = data.type;
 
@@ -106,8 +124,31 @@ export class MailService {
 
         await this.sendNow(data.email);
         break;
+      case 'opinion-created':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.opinion-created.subject`,
+          { request: data.request || '' },
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.opinion-created.body`,
+          {
+            user_name: data.user_name || '',
+            request: data.request || '',
+          },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.opinion-created.greet`,
+          { user_name: data.user_name || '' },
+        );
+        this.mail_data.button = {
+          url: data.url || '#',
+          label: this.stringService.formatMessage(
+            `email.opinion-created.button`,
+          ),
+        };
+        await this.sendNow(data.email);
+        break;
       default:
-        // payment-* and other patterns
         if (type?.startsWith?.('payment-')) {
           const key = type.replace('payment-', '');
           this.mail_data.subject = this.stringService.formatMessage(

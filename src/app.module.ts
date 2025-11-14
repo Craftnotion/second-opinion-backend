@@ -26,6 +26,8 @@ import { CommonSubscriber } from './database/subscribers/common.subscriber';
 import { UniqueIdGenerator } from './services/uid-generator/uid-generator.service';
 import { TransactionModule } from './modules/transaction/transaction.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ResponseInterceptor } from './response.interceptor';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -35,8 +37,6 @@ import { ServeStaticModule } from '@nestjs/serve-static';
     I18nModule.forRoot({
       fallbackLanguage: 'en',
       loaderOptions: {
-        // Use the repository src/i18n directory so translations are available
-        // both when running in ts-node (development) and when running compiled code.
         path: join(process.cwd(), 'src', 'i18n'),
         watch: true,
       },
@@ -47,12 +47,10 @@ import { ServeStaticModule } from '@nestjs/serve-static';
       ],
     }),
     TypeOrmModule.forRootAsync(typeormAsyncConfig),
-    // Global BullMQ configuration (required so Workers have a Redis connection)
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || '127.0.0.1',
         port: parseInt(process.env.REDIS_PORT || '6379'),
-        // leave password undefined when not set
         password: process.env.REDIS_PASSWORD || undefined,
       },
     }),
@@ -71,8 +69,8 @@ import { ServeStaticModule } from '@nestjs/serve-static';
     UserModule,
     AuthModule,
     AdminModule,
-  TextQueueModule,
-  MailQueueModule,
+    TextQueueModule,
+    MailQueueModule,
     TransactionModule,
   ],
 
@@ -100,6 +98,10 @@ import { ServeStaticModule } from '@nestjs/serve-static';
           'YjQ4NDEyOWMtNDBjZS00NmNhLTk2MjAtYzQxZjcxOGM1ODI2',
         );
       },
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ResponseInterceptor,
     },
   ],
 })
