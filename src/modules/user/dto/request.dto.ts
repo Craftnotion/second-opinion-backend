@@ -15,6 +15,10 @@ export class requestDto {
 
   @IsString()
   @IsOptional()
+  otp: string;
+
+  @IsString()
+  @IsOptional()
   location: string;
 
   @IsString()

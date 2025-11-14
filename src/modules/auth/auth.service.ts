@@ -93,24 +93,52 @@ export class AuthService {
   }
 
   async update(req: LoginRequest, requestDto: requestDto) {
-    const { email, full_name, phone, location } = requestDto;
+    const { email, full_name, phone, location, otp } = requestDto;
     const customer = await this.userRepository.findOneOrFail({
       where: { id: req.user.id },
     });
-    customer?.email === null ||
-      customer?.full_name === null ||
-      customer?.phone === null ||
-      customer?.location === null;
+    customer.email === null ||
+      customer.full_name === null ||
+      customer.phone === null ||
+      customer.location === null;
+    customer.full_name = full_name;
+    customer.phone = phone;
+    customer.location = location;
 
     if (email) {
-      customer.email = email;
+      console.log('email provided');
+
+      if (otp) {
+        const isValid = await this.codeService.verifyOTP(email, otp, 'email');
+        if (!isValid) {
+          return {
+            success: 0,
+            message: 'common.auth.failed',
+          };
+        }
+        customer.email = email;
+        await this.userRepository.save(customer);
+        const token = await this.GenerateToken(instanceToPlain(customer), '7d');
+        return {
+          success: 2,
+          message: 'common.profile.verify_email_sent',
+          data: {
+            user: customer,
+            token,
+          },
+        };
+      } else {
+        const code = await this.codeService.generateOTP(email, 'email');
+        await this.mailService.otpMail({ otp: code, identity: email });
+        return {
+          success: 2,
+          message: 'common.profile.verify_email_sent',
+          data: {
+            otp: code,
+          },
+        };
+      }
     }
-
-    customer.full_name = full_name;
-
-    customer.phone = phone;
-
-    customer.location = location;
 
     await this.userRepository.save(customer);
     const token = await this.GenerateToken(instanceToPlain(customer), '7d');
@@ -121,20 +149,6 @@ export class AuthService {
         user: customer,
         token,
       },
-    };
-  }
-
-  async mailTest() {
-    const email = 'arekapudikrishnachaitanya@gmail.com';
-
-    // Generate an OTP for the email identity and send it via MailService
-    const otp = await this.codeService.generateOTP(email, 'email');
-    await this.mailService.otpMail({ otp, identity: email });
-
-    return {
-      success: 1,
-      message: 'mail.sent',
-      data: { email },
     };
   }
 }

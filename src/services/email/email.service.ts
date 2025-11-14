@@ -2,34 +2,39 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StringService } from '../string/string.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 // template names are used (resolved by Mailer template.dir)
 import { mail_data } from 'src/types/types';
 
 @Injectable()
 export class MailService {
+  private mail_data: mail_data;
+
   constructor(
     private readonly config: ConfigService,
     private readonly stringService: StringService,
     private readonly mailerService: MailerService,
-  ) {}
+    @InjectQueue('email') private readonly queue: Queue,
+  ) {
+    // initialize default mail data with config values
+    this.mail_data = {
+      subject: '',
+      body: '',
+      greet: '',
+      logo: `https://seniorexperts.in/home/images/logo.png`,
+      app_name: this.config.get<string>('name') || 'SENIOR EXPERTS',
+      app_background: this.config.get<string>('background') || '',
+      app_color: this.config.get<string>('color') || '',
+    };
+  }
 
-  private mail_data: mail_data = {
-    subject: '',
-    body: '',
-    greet: '',
-    logo: `https://seniorexperts.in/home/images/logo.png`,
-    app_name: this.config.get<string>('name') || 'SENIOR EXPERTS',
-    app_background: this.config.get<string>('background') || '',
-    app_color: this.config.get<string>('color') || '',
-  };
-
-  private async send(email: string) {
+  // actual sending logic used by queue consumer
+  private async sendNow(email: string) {
     try {
       await this.mailerService.sendMail({
         to: email,
         subject: this.mail_data.subject,
-        // Use a template name relative to the MailerConfig.template.dir.
-        // The adapter will resolve e.g. <templateDir>/email/template.hbs
         template: 'email/template',
         context: { data: this.mail_data },
       });
@@ -38,32 +43,21 @@ export class MailService {
     }
   }
 
+  // public methods now enqueue jobs onto the 'email' queue
   async otpMail(data: { otp: string; identity: string }) {
-    this.mail_data.subject =
-      this.stringService.formatMessage(`email.otp.subject`);
-    this.mail_data.body = this.stringService.formatMessage(`email.otp.body`, {
-      otp: data.otp,
-    });
-    this.mail_data.greet = this.stringService.formatMessage(`email.greet`);
-    this.mail_data.button = { url: '#', label: data.otp };
-
-    await this.send(data.identity);
+    await this.queue.add(
+      'send-email',
+      { type: 'otp', ...data },
+      { attempts: 3, removeOnComplete: true },
+    );
   }
 
   async inviteUser(data: { email: string; url: any; name: string }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.invite-user.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'invite-user', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.body = this.stringService.formatMessage(
-      `email.invite-user.body`,
-    );
-    this.mail_data.greet = this.stringService.formatMessage(
-      `email.invite-user.greet`,
-      { name: data.name },
-    );
-    this.mail_data.button = { url: data.url, label: 'Log in' };
-
-    await this.send(data.email);
   }
 
   public async newApplication(data: {
@@ -73,24 +67,11 @@ export class MailService {
     project_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.new-application.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'new-application', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.body = this.stringService.formatMessage(
-      `email.new-application.body`,
-      {
-        user_name: data.user_name,
-        applicant_name: data.applicant_name,
-        project_name: data.project_name,
-      },
-    );
-    this.mail_data.greet = this.stringService.formatMessage(
-      `email.new-application.greet`,
-      { user_name: data.user_name },
-    );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    await this.send(data.email);
   }
 
   public async applicationShortlisted(data: {
@@ -99,20 +80,11 @@ export class MailService {
     project_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.application-shortlisted.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'application-shortlisted', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.body = this.stringService.formatMessage(
-      `email.application-shortlisted.body`,
-      { user_name: data.user_name, project_name: data.project_name },
-    );
-    this.mail_data.greet = this.stringService.formatMessage(
-      `email.application-shortlisted.greet`,
-      { user_name: data.user_name },
-    );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    await this.send(data.email);
   }
 
   public async applicationAccepted(data: {
@@ -121,20 +93,11 @@ export class MailService {
     project_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.application-accepted.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'application-accepted', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.body = this.stringService.formatMessage(
-      `email.application-accepted.body`,
-      { user_name: data.user_name, project_name: data.project_name },
-    );
-    this.mail_data.greet = this.stringService.formatMessage(
-      `email.application-accepted.greet`,
-      { user_name: data.user_name },
-    );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    await this.send(data.email);
   }
 
   public async applicationRejected(data: {
@@ -143,20 +106,11 @@ export class MailService {
     project_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.application-rejected.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'application-rejected', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.body = this.stringService.formatMessage(
-      `email.application-rejected.body`,
-      { user_name: data.user_name, project_name: data.project_name },
-    );
-    this.mail_data.greet = this.stringService.formatMessage(
-      `email.application-rejected.greet`,
-      { user_name: data.user_name },
-    );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    await this.send(data.email);
   }
 
   public async projectClosed(data: {
@@ -165,22 +119,11 @@ export class MailService {
     project_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.project-closed.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'project_closed', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    for (const i in data.email) {
-      this.mail_data.greet = this.stringService.formatMessage(
-        `email.project-closed.greet`,
-        { user_name: data.user_name[i] },
-      );
-      this.mail_data.body = this.stringService.formatMessage(
-        `email.project-closed.body`,
-        { project_name: data.project_name, user_name: data.user_name[i] },
-      );
-      await this.send(data.email[i]);
-    }
   }
 
   public async projectApplicationClosed(data: {
@@ -189,22 +132,11 @@ export class MailService {
     project_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.project_application_closed.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'project_application_closed', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    for (const i in data.email) {
-      this.mail_data.greet = this.stringService.formatMessage(
-        `email.project_application_closed.greet`,
-        { user_name: data.user_name[i] },
-      );
-      this.mail_data.body = this.stringService.formatMessage(
-        `email.project_application_closed.body`,
-        { project_name: data.project_name, user_name: data.user_name[i] },
-      );
-      await this.send(data.email[i]);
-    }
   }
 
   public async projectDraft(data: {
@@ -213,22 +145,11 @@ export class MailService {
     project_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.project-draft.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'project_draft', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    for (const i in data.email) {
-      this.mail_data.greet = this.stringService.formatMessage(
-        `email.project-published.greet`,
-        { user_name: data.user_name[i] },
-      );
-      this.mail_data.body = this.stringService.formatMessage(
-        `email.project-published.body`,
-        { project_name: data.project_name, user_name: data.user_name[i] },
-      );
-      await this.send(data.email[i]);
-    }
   }
 
   public async projectPublished(data: {
@@ -237,22 +158,11 @@ export class MailService {
     project_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.project-published.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'project_published', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    for (const i in data.email) {
-      this.mail_data.greet = this.stringService.formatMessage(
-        `email.project-published.greet`,
-        { user_name: data.user_name[i] },
-      );
-      this.mail_data.body = this.stringService.formatMessage(
-        `email.project-published.body`,
-        { project_name: data.project_name, user_name: data.user_name[i] },
-      );
-      await this.send(data.email[i]);
-    }
   }
 
   public async newConnection(data: {
@@ -261,20 +171,11 @@ export class MailService {
     sender_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.new-connection.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'new-connection', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.body = this.stringService.formatMessage(
-      `email.new-connection.body`,
-      { user_name: data.user_name, sender_name: data.sender_name },
-    );
-    this.mail_data.greet = this.stringService.formatMessage(
-      `email.new-connection.greet`,
-      { user_name: data.user_name },
-    );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    await this.send(data.email);
   }
 
   public async connectionAccepted(data: {
@@ -283,20 +184,11 @@ export class MailService {
     receiver_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.connection-accepted.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'connection-accepted', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.body = this.stringService.formatMessage(
-      `email.connection-accepted.body`,
-      { user_name: data.user_name, receiver_name: data.receiver_name },
-    );
-    this.mail_data.greet = this.stringService.formatMessage(
-      `email.connection-accepted.greet`,
-      { user_name: data.user_name },
-    );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    await this.send(data.email);
   }
 
   public async connectionRejected(data: {
@@ -305,20 +197,11 @@ export class MailService {
     receiver_name: string;
     url: any;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.connection-rejected.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: 'connection-rejected', ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.body = this.stringService.formatMessage(
-      `email.connection-rejected.body`,
-      { user_name: data.user_name, receiver_name: data.receiver_name },
-    );
-    this.mail_data.greet = this.stringService.formatMessage(
-      `email.connection-rejected.greet`,
-      { user_name: data.user_name },
-    );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
-
-    await this.send(data.email);
   }
 
   public async paymentStatus(data: {
@@ -328,19 +211,265 @@ export class MailService {
     url: any;
     amount: number;
   }) {
-    this.mail_data.subject = this.stringService.formatMessage(
-      `email.payment-${data.key}.subject`,
+    await this.queue.add(
+      'send-email',
+      { type: `payment-${data.key}`, ...data },
+      { attempts: 3, removeOnComplete: true },
     );
-    this.mail_data.body = this.stringService.formatMessage(
-      `email.payment-${data.key}.body`,
-      { user_name: data.user_name, amount: data.amount },
-    );
-    this.mail_data.greet = this.stringService.formatMessage(
-      `email.payment-${data.key}.greet`,
-      { user_name: data.user_name },
-    );
-    this.mail_data.button = { url: data.url, label: 'See Details' };
+  }
 
-    await this.send(data.email);
+  // called by the queue consumer to actually format and send the email
+  public async handleJob(data: any) {
+    const type: string = data.type;
+
+    switch (type) {
+      case 'otp':
+        this.mail_data.subject =
+          this.stringService.formatMessage(`email.otp.subject`);
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.otp.body`,
+          { otp: data.otp },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(`email.greet`);
+        this.mail_data.button = { url: '#', label: data.otp };
+
+        await this.sendNow(data.identity);
+        break;
+
+      case 'invite-user':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.invite-user.subject`,
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.invite-user.body`,
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.invite-user.greet`,
+          { name: data.name },
+        );
+        this.mail_data.button = { url: data.url, label: 'Log in' };
+
+        await this.sendNow(data.email);
+        break;
+
+      case 'new-application':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.new-application.subject`,
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.new-application.body`,
+          {
+            user_name: data.user_name,
+            applicant_name: data.applicant_name,
+            project_name: data.project_name,
+          },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.new-application.greet`,
+          { user_name: data.user_name },
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        await this.sendNow(data.email);
+        break;
+
+      case 'application-shortlisted':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.application-shortlisted.subject`,
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.application-shortlisted.body`,
+          { user_name: data.user_name, project_name: data.project_name },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.application-shortlisted.greet`,
+          { user_name: data.user_name },
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        await this.sendNow(data.email);
+        break;
+
+      case 'application-accepted':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.application-accepted.subject`,
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.application-accepted.body`,
+          { user_name: data.user_name, project_name: data.project_name },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.application-accepted.greet`,
+          { user_name: data.user_name },
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        await this.sendNow(data.email);
+        break;
+
+      case 'application-rejected':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.application-rejected.subject`,
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.application-rejected.body`,
+          { user_name: data.user_name, project_name: data.project_name },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.application-rejected.greet`,
+          { user_name: data.user_name },
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        await this.sendNow(data.email);
+        break;
+
+      case 'project_closed':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.project-closed.subject`,
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        for (const i in data.email) {
+          this.mail_data.greet = this.stringService.formatMessage(
+            `email.project-closed.greet`,
+            { user_name: data.user_name[i] },
+          );
+          this.mail_data.body = this.stringService.formatMessage(
+            `email.project-closed.body`,
+            { project_name: data.project_name, user_name: data.user_name[i] },
+          );
+          await this.sendNow(data.email[i]);
+        }
+        break;
+
+      case 'project_application_closed':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.project_application_closed.subject`,
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        for (const i in data.email) {
+          this.mail_data.greet = this.stringService.formatMessage(
+            `email.project_application_closed.greet`,
+            { user_name: data.user_name[i] },
+          );
+          this.mail_data.body = this.stringService.formatMessage(
+            `email.project_application_closed.body`,
+            { project_name: data.project_name, user_name: data.user_name[i] },
+          );
+          await this.sendNow(data.email[i]);
+        }
+        break;
+
+      case 'project_draft':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.project-draft.subject`,
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        for (const i in data.email) {
+          this.mail_data.greet = this.stringService.formatMessage(
+            `email.project-published.greet`,
+            { user_name: data.user_name[i] },
+          );
+          this.mail_data.body = this.stringService.formatMessage(
+            `email.project-published.body`,
+            { project_name: data.project_name, user_name: data.user_name[i] },
+          );
+          await this.sendNow(data.email[i]);
+        }
+        break;
+
+      case 'project_published':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.project-published.subject`,
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        for (const i in data.email) {
+          this.mail_data.greet = this.stringService.formatMessage(
+            `email.project-published.greet`,
+            { user_name: data.user_name[i] },
+          );
+          this.mail_data.body = this.stringService.formatMessage(
+            `email.project-published.body`,
+            { project_name: data.project_name, user_name: data.user_name[i] },
+          );
+          await this.sendNow(data.email[i]);
+        }
+        break;
+
+      case 'new-connection':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.new-connection.subject`,
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.new-connection.body`,
+          { user_name: data.user_name, sender_name: data.sender_name },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.new-connection.greet`,
+          { user_name: data.user_name },
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        await this.sendNow(data.email);
+        break;
+
+      case 'connection-accepted':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.connection-accepted.subject`,
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.connection-accepted.body`,
+          { user_name: data.user_name, receiver_name: data.receiver_name },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.connection-accepted.greet`,
+          { user_name: data.user_name },
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        await this.sendNow(data.email);
+        break;
+
+      case 'connection-rejected':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.connection-rejected.subject`,
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.connection-rejected.body`,
+          { user_name: data.user_name, receiver_name: data.receiver_name },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.connection-rejected.greet`,
+          { user_name: data.user_name },
+        );
+        this.mail_data.button = { url: data.url, label: 'See Details' };
+
+        await this.sendNow(data.email);
+        break;
+
+      default:
+        // payment-* and other patterns
+        if (type?.startsWith?.('payment-')) {
+          const key = type.replace('payment-', '');
+          this.mail_data.subject = this.stringService.formatMessage(
+            `email.payment-${key}.subject`,
+          );
+          this.mail_data.body = this.stringService.formatMessage(
+            `email.payment-${key}.body`,
+            { user_name: data.user_name, amount: data.amount },
+          );
+          this.mail_data.greet = this.stringService.formatMessage(
+            `email.payment-${key}.greet`,
+            { user_name: data.user_name },
+          );
+          this.mail_data.button = { url: data.url, label: 'See Details' };
+          await this.sendNow(data.email);
+        }
+        break;
+    }
   }
 }
