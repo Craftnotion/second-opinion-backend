@@ -7,9 +7,15 @@ import { AuthModule } from '../auth/auth.module';
 import { Requests } from 'src/database/entities/request.entity';
 import { Document } from 'src/database/entities/document.entity';
 import { UniqueIdGenerator } from 'src/services/uid-generator/uid-generator.service';
+import { BullModule } from '@nestjs/bullmq';
+import { MailQueueModule } from 'src/queue/email-queue/email-queue.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Requests, Document]), AuthModule],
+  imports: [
+    TypeOrmModule.forFeature([User, Requests, Document]),
+    AuthModule,
+    MailQueueModule,
+  ],
   controllers: [UserController],
   providers: [UserService, UniqueIdGenerator],
   exports: [UserService],

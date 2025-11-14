@@ -35,7 +35,7 @@ export class AdminService {
   ) {
     const { specialistName, qualification, hospital, summary, requestId } =
       data;
-    const request = await this.userService.getRequestById(Number(requestId));
+    const request = await this.userService.getRequestById(requestId);
     if (!request) {
       return { success: 0, message: 'Request not found' };
     } else if (request.status === 'completed') {

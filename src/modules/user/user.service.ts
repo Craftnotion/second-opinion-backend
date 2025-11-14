@@ -10,10 +10,15 @@ import { Document } from 'src/database/entities/document.entity';
 import { filterDto } from '../utils/param-filter.dto';
 import { paginate } from 'nestjs-typeorm-paginate';
 import { UniqueIdGenerator } from 'src/services/uid-generator/uid-generator.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { MailService } from 'src/services/email/email.service';
 
 @Injectable()
 export class UserService {
   constructor(
+    private readonly mailService: MailService,
+
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Requests)
@@ -22,8 +27,7 @@ export class UserService {
     private readonly documentRepository: Repository<Document>,
     private readonly authService: AuthService,
     private readonly uidGenerator: UniqueIdGenerator,
-
-  ) { }
+  ) {}
 
   async update(req: LoginRequest, requestDto: requestDto) {
     return await this.authService.update(req, requestDto);
@@ -67,6 +71,19 @@ export class UserService {
       }
     }
 
+    const savedRequest = await this.requestsRepository.findOne({
+      where: { id: requests.id },
+    });
+    if (!savedRequest) {
+      return { success: 0, message: 'Failed to create request' };
+    }
+
+    await this.mailService.requestCreated({
+      email: 'craftnotion@gmail.com',
+      applicant_name: user.full_name ?? '',
+      specialty: savedRequest.specialty ?? '',
+      urgency: savedRequest.urgency ?? '',
+    });
     return { success: 1, message: 'Request created successfully' };
   }
 
@@ -107,8 +124,8 @@ export class UserService {
     };
   }
 
-  async getRequestById(id: number) {
-    return await this.requestsRepository.findOne({ where: { id } });
+  async getRequestById(id: string) {
+    return await this.requestsRepository.findOne({ where: { slug: id } });
   }
 
   async updateRequestStatus(id: string) {

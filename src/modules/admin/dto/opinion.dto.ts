@@ -15,5 +15,5 @@ export class OpinionDto {
   summary: string;
 
   @IsString()
-  requestId: number;
+  requestId: string;
 }
