@@ -4,9 +4,6 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 
 const mailConfig = config.get<{ [key: string]: string }>('mail');
-console.log('mailConfig', mailConfig);
-console.log('mailConfig password', mailConfig.password);
-console.log('mailConfig host', mailConfig.host);
 
 const distI18n = join(process.cwd(), 'dist', 'i18n');
 const srcI18n = join(process.cwd(), 'src', 'i18n');

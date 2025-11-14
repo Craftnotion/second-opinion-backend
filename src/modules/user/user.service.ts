@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/database/entities/user.entity';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
 import { LoginRequest } from 'src/types/request';
 import { requestDto } from './dto/request.dto';
@@ -10,8 +10,6 @@ import { Document } from 'src/database/entities/document.entity';
 import { filterDto } from '../utils/param-filter.dto';
 import { paginate } from 'nestjs-typeorm-paginate';
 import { UniqueIdGenerator } from 'src/services/uid-generator/uid-generator.service';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { MailService } from 'src/services/email/email.service';
 
 @Injectable()
@@ -45,7 +43,7 @@ export class UserService {
       where: { id: req.user.id },
     });
     if (!user) {
-      return { success: 0, message: 'User not found' };
+      return { success: 0, message: 'common.user.not_found' };
     }
 
     const { specialty, urgency, request, cost } = requestDto;
@@ -80,7 +78,7 @@ export class UserService {
       where: { id: requests.id },
     });
     if (!savedRequest) {
-      return { success: 0, message: 'Failed to create request' };
+      return { success: 0, message: 'common.request.failed' };
     }
 
     await this.mailService.requestCreated({
@@ -89,7 +87,7 @@ export class UserService {
       specialty: savedRequest.specialty ?? '',
       urgency: savedRequest.urgency ?? '',
     });
-    return { success: 1, message: 'Request created successfully' };
+    return { success: 1, message: 'common.request.created' };
   }
 
   async getRequests(paramsFilter: filterDto, req: LoginRequest) {
@@ -158,9 +156,9 @@ export class UserService {
       relations: relations,
     });
     if (!request) {
-      return { success: 0, message: 'Request not found' };
+      return { success: 0, message: 'common.request.not_found' };
     }
-    return { success: 1, message: 'Request details fetched', data: request };
+    return { success: 1, message: 'common.request.found', data: request };
   }
 
   async getUserbyid(id: string) {

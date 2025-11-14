@@ -16,7 +16,6 @@ const dbConfig = config.get<{ [key: string]: string }>('app');
 export class AdminService {
   constructor(
     private readonly userService: UserService,
-    private readonly hashService: HashService,
     @InjectRepository(Opinion)
     private readonly opinionRepository: Repository<Opinion>,
     @InjectRepository(opinionDocument)
@@ -31,20 +30,19 @@ export class AdminService {
   async opinion(
     data: OpinionDto,
     avatar: {
-      audioFile: Express.Multer.File[];
-      documents: Express.Multer.File[];
+      audioFile?: Express.Multer.File[];
+      documents?: Express.Multer.File[];
     },
   ) {
     const { specialistName, qualification, hospital, summary, requestId } =
       data;
     const request = await this.userService.getRequestById(requestId);
-    console.log('request', request);
     if (!request) {
       return { success: 0, message: 'Request not found' };
     } else if (request.status === 'completed') {
       return {
         success: 0,
-        message: 'Opinion already submitted for this request',
+        message: 'common.opinion.already_submitted',
       };
     }
 
@@ -53,20 +51,23 @@ export class AdminService {
     opinion.qualification = qualification;
     opinion.hospital = hospital;
     opinion.summary = summary;
-    opinion.avatar = avatar.audioFile[0] || null;
+    if (avatar?.audioFile?.length) {
+      opinion.avatar = avatar?.audioFile[0] || null;
+    }
     opinion.request_id = request.id;
     await this.opinionRepository.save(opinion);
-
-    for (const file of avatar.documents) {
-      const document = new opinionDocument();
-      document.opinion_id = opinion.id;
-      document.avatar = file;
-      document.metadata = {
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-        size: file.size,
-      };
-      await this.opinionDocumentRepository.save(document);
+    if (avatar?.documents?.length) {
+      for (const file of avatar.documents) {
+        const document = new opinionDocument();
+        document.opinion_id = opinion.id;
+        document.avatar = file;
+        document.metadata = {
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        };
+        await this.opinionDocumentRepository.save(document);
+      }
     }
     await this.userService.updateRequestStatus(request.slug);
     await this.mailService.opinionCreated({
@@ -75,7 +76,7 @@ export class AdminService {
       request: request.request ?? '',
       url: `${dbConfig.frontend_url}/user/requests/${request.slug}`,
     });
-    return { success: 1, message: 'Opinion created successfully' };
+    return { success: 1, message: 'common.opinion.submitted' };
   }
 
   async getRequestById(id: string, req: LoginRequest) {

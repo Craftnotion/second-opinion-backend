@@ -10,7 +10,6 @@ export class TextQueueProcessor extends WorkerHost {
     let { phone, code } = job.data;
 
     // Basic logging to help debug whether the job is being processed
-    console.log('TextQueueProcessor: processing job', { phone, code });
 
     const authKey = '272160A7NN1J35i5cb096b1'; // Replace with your actual auth key
     const mobileNo = `91${phone}`;
@@ -21,10 +20,12 @@ export class TextQueueProcessor extends WorkerHost {
     try {
       const res = await fetch(url as any);
       try {
-        const text = await res.text();
-        console.log('TextQueueProcessor: msg91 response', { ok: res.ok, status: res.status, body: text.slice(0, 200) });
+        await res.text();
       } catch (e) {
-        console.log('TextQueueProcessor: msg91 response received but failed to read body', e);
+        console.log(
+          'TextQueueProcessor: msg91 response received but failed to read body',
+          e,
+        );
       }
     } catch (error) {
       console.log('TextQueueProcessor: fetch error', error);

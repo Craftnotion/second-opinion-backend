@@ -21,7 +21,9 @@ export class MailService {
       subject: '',
       body: '',
       greet: '',
-      logo:this.config.get<string>('logo') || `https://seniorexperts.in/home/images/logo.png`,
+      logo:
+        this.config.get<string>('logo') ||
+        `https://seniorexperts.in/home/images/logo.png`,
       app_name: 'Second Opinion',
       app_background: this.config.get<string>('background') || '',
       app_color: this.config.get<string>('color') || '',
@@ -88,6 +90,55 @@ export class MailService {
     );
   }
 
+  async sendPaymentSuccessEmail(data: {
+    to: string;
+    name: string;
+    amount: string;
+    orderId: string;
+    paymentId: string;
+    paidAt: string;
+  }) {
+    await this.queue.add(
+      'send-email',
+      {
+        to: data.to,
+        name: data.name,
+        amount: data.amount,
+        orderId: data.orderId,
+        paymentId: data.paymentId,
+        paidAt: data.paidAt,
+        type: `payment-status-changed`,
+      },
+      { attempts: 3, removeOnComplete: true },
+    );
+  }
+
+  async sendPaymentSuccessNotificationToAdmins(data: {
+    transactionId: string;
+    amount: string;
+    orderId: string;
+    paymentId: string;
+    paidAt: string;
+    user: {
+      name: string;
+      email: string;
+      phone: string;
+    };
+  }) {
+    await this.queue.add(
+      'send-email',
+      {
+        transactionId: data.transactionId,
+        amount: data.amount,
+        orderId: data.orderId,
+        paymentId: data.paymentId,
+        paidAt: data.paidAt,
+        user: data.user,
+        type: `payment-admin-notification`,
+      },
+      { attempts: 3, removeOnComplete: true },
+    );
+  }
   public async handleJob(data: any) {
     const type: string = data.type;
 

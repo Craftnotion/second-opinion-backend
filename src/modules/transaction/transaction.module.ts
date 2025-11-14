@@ -4,9 +4,14 @@ import { TransactionController } from './transaction.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Transaction } from 'src/database/entities/transaction.entity';
 import { UserModule } from '../user/user.module';
+import { MailQueueModule } from 'src/queue/email-queue/email-queue.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Transaction]), UserModule],
+  imports: [
+    TypeOrmModule.forFeature([Transaction]),
+    UserModule,
+    MailQueueModule,
+  ],
   controllers: [TransactionController],
   providers: [TransactionService],
 })

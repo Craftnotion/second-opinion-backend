@@ -19,7 +19,6 @@ export class Opinion {
   private $private_file: boolean = true;
 
   set avatar_url(value: string | null) {
-    console.log('setting avatar url to', value);
     this.$avatar_url = value;
   }
 

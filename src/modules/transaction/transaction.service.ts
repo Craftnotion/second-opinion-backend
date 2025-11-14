@@ -11,6 +11,7 @@ import { UserService } from '../user/user.service';
 import { HttpResponse, TransactionStatus } from 'src/types/types';
 import { TransactionDto } from './dto/transaction.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
+import { MailService } from 'src/services/email/email.service';
 const Razorpay = require('razorpay');
 
 @Injectable()
@@ -26,6 +27,7 @@ export class TransactionService {
     @InjectRepository(Transaction)
     private readonly TransactionRepository: Repository<Transaction>,
     private readonly userService: UserService,
+    private readonly mailService: MailService,
   ) {
     this.razorpay = new Razorpay({
       key_id: this.razorpayConfig.api_key_id,
@@ -525,27 +527,27 @@ export class TransactionService {
         }`,
       );
 
-      // await this.mailService.sendPaymentSuccessEmail({
-      //   to: user.email,
-      //   name: user.full_name,
-      //   amount: transaction.amount,
-      //   orderId: transaction.razorpay_order_id ?? '',
-      //   paymentId: transaction.razorpay_payment_id ?? '',
-      //   paidAt: transaction.updated_at,
-      // });
+      await this.mailService.sendPaymentSuccessEmail({
+        to: user.email,
+        name: user.full_name || 'User',
+        amount: transaction.amount,
+        orderId: transaction.razorpay_order_id ?? '',
+        paymentId: transaction.razorpay_payment_id ?? '',
+        paidAt: transaction.updated_at,
+      });
 
-      // await this.mailService.sendPaymentSuccessNotificationToAdmins({
-      //   transactionId: transaction.id,
-      //   amount: transaction.amount,
-      //   orderId: transaction.razorpay_order_id ?? '',
-      //   paymentId: transaction.razorpay_payment_id ?? '',
-      //   paidAt: transaction.updated_at,
-      //   company: {
-      //     name: user.full_name,
-      //     email: user.email,
-      //     phone: user.phone,
-      //   },
-      // });
+      await this.mailService.sendPaymentSuccessNotificationToAdmins({
+        transactionId: transaction.id,
+        amount: transaction.amount,
+        orderId: transaction.razorpay_order_id ?? '',
+        paymentId: transaction.razorpay_payment_id ?? '',
+        paidAt: transaction.updated_at,
+        user: {
+          name: user.full_name?? 'User',
+          email: user.email,
+          phone: user.phone ?? '',
+        },
+      });
     } catch (error) {
       this.logger.error(
         `Failed to send payment success email for ${user.email}`,

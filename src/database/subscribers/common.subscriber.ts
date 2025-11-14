@@ -35,7 +35,6 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
   }
 
   async beforeInsert(event: InsertEvent<any>) {
-    // console.log('event',event)
     if (!event?.entity) return;
 
     const columns = event.metadata.columns.map((col) => col.propertyName);

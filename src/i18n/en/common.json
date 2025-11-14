@@ -2,7 +2,9 @@
   "auth": {
     "login": {
       "send_otp": "An OTP has been sent to the registered phone number",
-      "successful": "User has Logeed in successful"
+      "successful": "User has Logeed in successful",
+
+      "not_admin": "You are not authorized to access admin panel"
     },
     "failed": "Authentication failed"
   },
@@ -20,5 +22,18 @@
       "body": "You've been invited",
       "greet": "Hello {{name}}"
     }
+  },
+  "opinion": {
+    "submitted": "Opinion has been submitted successfully",
+    "already_submitted": "Opinion has already been submitted for this request"
+  },
+  "user": {
+    "not_found": "User not found"
+  },
+  "request": {
+    "created": "Request has been created successfully",
+    "failed": "Failed to create request",
+    "not_found": "Request not found",
+    "found": "Request details has been fetched successfully"
   }
 }

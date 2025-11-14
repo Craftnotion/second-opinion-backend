@@ -56,7 +56,11 @@ export class AuthService {
       user = await this.userRepository.findOne({
         where: { phone, role: 'admin' },
       });
-      console.log('admin user', user);
+      return {
+        success: 0,
+        message: 'common.auth.login.not_admin',
+
+      }
     }
 
     if (!user && type === 'user') {
@@ -106,7 +110,6 @@ export class AuthService {
     customer.location = location;
 
     if (email && email !== customer.email) {
-      console.log('email provided');
 
       if (otp) {
         const isValid = await this.codeService.verifyOTP(email, otp, 'email');

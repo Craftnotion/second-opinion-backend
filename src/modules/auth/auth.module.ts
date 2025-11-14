@@ -26,3 +26,5 @@ import { MailQueueModule } from 'src/queue/email-queue/email-queue.module';
   exports: [AuthService],
 })
 export class AuthModule {}
+
+
