@@ -120,7 +120,7 @@ export class AuthService {
         await this.userRepository.save(customer);
         const token = await this.GenerateToken(instanceToPlain(customer), '7d');
         return {
-          success: 2,
+          success: 1,
           message: 'common.profile.verify_email_sent',
           data: {
             user: customer,

@@ -57,7 +57,7 @@ export class UserService {
     requests.request = request || null;
     requests.cost = cost ? parseFloat(cost) : null;
     if (avatar.audioFile) {
-      requests.avatar = avatar.audioFile[0];
+      requests.avatar = avatar.audioFile[0] || null;
     }
     requests.uid = this.uidGenerator.generateRequestId();
     await this.requestsRepository.save(requests);

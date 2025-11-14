@@ -16,12 +16,12 @@ organisation:
 otp:
   length: 6
 
-sms:
-  username: guideme.trans
-  password: 3R1rt
-  senderId: GUIDSM
-  unicode: false
-  dltContentId: '1007165665000180033'
+# sms:
+#   username: guideme.trans
+#   password: 3R1rt
+#   senderId: GUIDSM
+#   unicode: false
+#   dltContentId: '1007165665000180033'
 
 typeorm:
   port: 3306
@@ -57,8 +57,10 @@ mail:
   from: craftnotion@gmail.com
 
 # App branding for emails
-name: SENIOR EXPERTS
+name: Second Opinion
 background: '#f8f9fa'
 color: '#007bff'
 
 frontend_url: http://localhost:3000
+
+logo: https://seniorexperts.in/home/images/logo.png

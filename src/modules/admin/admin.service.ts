@@ -53,7 +53,7 @@ export class AdminService {
     opinion.qualification = qualification;
     opinion.hospital = hospital;
     opinion.summary = summary;
-    opinion.avatar = avatar.audioFile[0];
+    opinion.avatar = avatar.audioFile[0] || null;
     opinion.request_id = request.id;
     await this.opinionRepository.save(opinion);
 

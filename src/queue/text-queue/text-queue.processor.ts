@@ -3,6 +3,9 @@ import { Job } from 'bullmq';
 
 @Processor('text')
 export class TextQueueProcessor extends WorkerHost {
+  constructor() {
+    super();
+  }
   async process(job: Job<any, any, string>): Promise<any> {
     let { phone, code } = job.data;
 

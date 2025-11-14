@@ -21,8 +21,8 @@ export class MailService {
       subject: '',
       body: '',
       greet: '',
-      logo: `https://seniorexperts.in/home/images/logo.png`,
-      app_name: this.config.get<string>('name') || 'SENIOR EXPERTS',
+      logo:this.config.get<string>('logo') || `https://seniorexperts.in/home/images/logo.png`,
+      app_name: 'Second Opinion',
       app_background: this.config.get<string>('background') || '',
       app_color: this.config.get<string>('color') || '',
     };
