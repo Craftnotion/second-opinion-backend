@@ -61,6 +61,11 @@ export class AdminService {
       const document = new opinionDocument();
       document.opinion_id = opinion.id;
       document.avatar = file;
+      document.metadata = {
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+      };
       await this.opinionDocumentRepository.save(document);
     }
     await this.userService.updateRequestStatus(request.slug);

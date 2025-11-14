@@ -67,6 +67,11 @@ export class UserService {
         const document = new Document();
         document.request_id = requests.id;
         document.avatar = file;
+        document.metadata = {
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size,
+        };
         await this.documentRepository.save(document);
       }
     }
@@ -125,7 +130,10 @@ export class UserService {
   }
 
   async getRequestById(id: string) {
-    return await this.requestsRepository.findOne({ where: { slug: id } ,relations: ['user']});
+    return await this.requestsRepository.findOne({
+      where: { slug: id },
+      relations: ['user'],
+    });
   }
 
   async updateRequestStatus(id: string) {

@@ -52,6 +52,9 @@ export class Document {
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
+  @Column({type:'json'})
+  metadata: Record<string, any> | null;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;
 
