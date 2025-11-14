@@ -19,5 +19,9 @@ export class TransactionDto {
 
   @IsString()
   @ApiProperty()
-  id: string;
+  Userid: string;
+
+  @IsString()
+  @ApiProperty()
+  requestId: string;
 }

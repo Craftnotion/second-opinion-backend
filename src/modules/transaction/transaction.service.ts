@@ -40,11 +40,25 @@ export class TransactionService {
     try {
       // console.log('User in CreateOrder:', body);
       //first we gonna create a record in our database with status as pending
-      const user = await this.userService.getUserbyid(body.id);
+      const user = await this.userService.getUserbyid(body.Userid);
+      const request = await this.userService.getRequestById(body.requestId);
+      if (!user) {
+        return {
+          success: 0,
+          message: 'common.user.not_found',
+        };
+      }
+      if (!request) {
+        return {
+          success: 0,
+          message: 'common.request.not_found',
+        };
+      }
       const transaction = this.TransactionRepository.create({
         user_id: user?.id,
         amount: Number(body.amount),
         status: 'pending' as TransactionStatus,
+        request_id: request.id,
       });
       const savedTransaction =
         await this.TransactionRepository.save(transaction);
@@ -56,7 +70,7 @@ export class TransactionService {
         currency: 'INR',
         receipt: `receipt_order_${savedTransaction.id}`,
         notes: {
-          user_id: body.id,
+          user_id: body.Userid,
           transaction_id: savedTransaction.id,
           user_phone: user?.phone || '',
           user_name: user?.full_name || '',
@@ -543,7 +557,7 @@ export class TransactionService {
         paymentId: transaction.razorpay_payment_id ?? '',
         paidAt: transaction.updated_at,
         user: {
-          name: user.full_name?? 'User',
+          name: user.full_name ?? 'User',
           email: user.email,
           phone: user.phone ?? '',
         },

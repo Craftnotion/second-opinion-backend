@@ -5,12 +5,14 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { User } from './user.entity';
 import { TransactionStatus } from 'src/types/types';
+import { Requests } from './request.entity';
 
 @Entity()
 export class Transaction {
@@ -20,6 +22,9 @@ export class Transaction {
   @Column()
   user_id: number;
 
+  @Column()
+  transaction_id: number;
+
   @Column({ default: 0 })
   amount: number;
 
@@ -28,6 +33,9 @@ export class Transaction {
 
   @Column({ nullable: true })
   razorpay_order_id: string;
+
+  @Column({ nullable: true })
+  request_id: number;
 
   @Index()
   @Column({ nullable: true })
@@ -48,6 +56,10 @@ export class Transaction {
   @JoinColumn({ name: 'User_id' })
   @Exclude()
   user: User;
+
+  @OneToOne(() => Requests, (request) => request.transaction)
+  @JoinColumn({ name: 'transaction_id' })
+  request: Request;
 }
 
 export interface PaymentLink extends Transaction {

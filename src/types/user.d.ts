@@ -49,5 +49,3 @@ export type PermissionType = {
     created_at: Date;
     updated_at: Date;
 }
-
-export type userType = "sme" | "se" | "admin" | "shortlisted" | "applied" | "explore-project"

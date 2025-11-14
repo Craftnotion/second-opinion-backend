@@ -10,7 +10,7 @@ import {
 import { Document } from './document.entity';
 import { Opinion } from './opinion.entity';
 import { User } from './user.entity';
-
+import { Transaction } from './transaction.entity';
 @Entity('requests')
 export class Requests {
   // Internal avatar helpers
@@ -92,4 +92,7 @@ export class Requests {
   @ManyToOne(() => User, (user) => user.requests)
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @OneToOne(() => Transaction, (transaction) => transaction.request)
+  transaction: Transaction;
 }
