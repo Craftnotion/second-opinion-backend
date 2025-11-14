@@ -11,10 +11,11 @@ import { configObject } from 'src/types/types';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { CodeService } from 'src/services/code/code.service';
+import { MailService } from 'src/services/email/email.service';
 import { loginDto } from './dto/login.dto';
 import { requestDto } from '../user/dto/request.dto';
 import { LoginRequest } from 'src/types/request';
-import e from 'express';
+
 const JwtConfig = config.get<configObject>('jwt');
 @Injectable()
 export class AuthService {
@@ -25,6 +26,7 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     private readonly hashService: HashService,
     private readonly codeService: CodeService,
+    private readonly mailService: MailService,
   ) {}
 
   async GenerateToken(data: any, time: string = '100d'): Promise<string> {
@@ -50,14 +52,14 @@ export class AuthService {
       user = await this.userRepository.findOne({
         where: { phone, role: 'user' },
       });
-    } else {
+    } else if (type === 'admin') {
       user = await this.userRepository.findOne({
         where: { phone, role: 'admin' },
       });
+      console.log('admin user', user);
     }
 
-    if (!user) {
-      console.log('Creating user');
+    if (!user && type === 'user') {
       const user = new User();
       user.phone = phone;
       user.role = 'user';
@@ -119,6 +121,20 @@ export class AuthService {
         user: customer,
         token,
       },
+    };
+  }
+
+  async mailTest() {
+    const email = 'arekapudikrishnachaitanya@gmail.com';
+
+    // Generate an OTP for the email identity and send it via MailService
+    const otp = await this.codeService.generateOTP(email, 'email');
+    await this.mailService.otpMail({ otp, identity: email });
+
+    return {
+      success: 1,
+      message: 'mail.sent',
+      data: { email },
     };
   }
 }

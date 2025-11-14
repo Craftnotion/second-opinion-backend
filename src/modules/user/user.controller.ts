@@ -62,8 +62,8 @@ export class UserController {
     @Body() requestDto: requestDto,
     @UploadedFiles()
     files: {
-      audioFile: Express.Multer.File[];
-      documents: Express.Multer.File[];
+      audioFile?: Express.Multer.File[];
+      documents?: Express.Multer.File[];
     },
   ) {
     return await this.userService.requests(req, requestDto, files);
@@ -81,11 +81,11 @@ export class UserController {
     return await this.userService.getRequests(paramsFilter, req);
   }
 
-  @Get('request/:id')
+  @Get('requests/:id')
   @UseGuards(JwtGuard)
   @ApiBearerAuth('authorization')
   @ApiOperation({ summary: 'getting request by id' })
-  async getRequestById(@Req() req: LoginRequest, @Param('id') id: number) {
+  async getRequestById(@Req() req: LoginRequest, @Param('id') id: string) {
     return await this.userService.getRequestDetails(id, req);
   }
 }

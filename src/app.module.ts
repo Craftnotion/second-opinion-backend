@@ -6,6 +6,7 @@ import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { TextQueueModule } from './queue/text-queue/text-queue.module';
+import { MailQueueModule } from './queue/email-queue/email-queue.module';
 import { ConfigModule } from '@nestjs/config';
 import { HashService } from './services/hash/hash.service';
 import { JwtModule } from '@nestjs/jwt';
@@ -23,7 +24,8 @@ import { join } from 'path';
 import { FileService } from './services/file/file.service';
 import { CommonSubscriber } from './database/subscribers/common.subscriber';
 import { UniqueIdGenerator } from './services/uid-generator/uid-generator.service';
-
+import { TransactionModule } from './modules/transaction/transaction.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -61,11 +63,17 @@ import { UniqueIdGenerator } from './services/uid-generator/uid-generator.servic
       },
       global: true,
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
+    }),
 
     UserModule,
     AuthModule,
     AdminModule,
-    TextQueueModule,
+  TextQueueModule,
+  MailQueueModule,
+    TransactionModule,
   ],
 
   controllers: [AppController],

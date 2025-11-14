@@ -1,10 +1,16 @@
-import { MigrationInterface, QueryRunner, Table } from 'typeorm';
+import { TransactionStatus } from 'src/types/types';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableForeignKey,
+} from 'typeorm';
 
-export class Request1763017503587 implements MigrationInterface {
+export class Transactions1763036853497 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.createTable(
       new Table({
-        name: 'requests',
+        name: 'transaction',
         columns: [
           {
             name: 'id',
@@ -16,43 +22,35 @@ export class Request1763017503587 implements MigrationInterface {
           {
             name: 'user_id',
             type: 'int',
-            isNullable: false,
           },
           {
-            name: 'specialty',
-            type: 'varchar',
-            isNullable: true,
-          },
-          {
-            name: 'request',
-            type: 'text',
-            isNullable: true,
-          },
-          {
-            name: 'urgency',
-            type: 'varchar',
-            isNullable: true,
-          },
-          {
-            name: 'cost',
+            name: 'amount',
             type: 'decimal',
+            precision: 10,
+            scale: 2,
+          },
+          {
+            name: 'razorpay_payment_id',
+            type: 'varchar',
+            length: '100',
+            isNullable: true,
+          },
+          {
+            name: 'razorpay_order_id',
+            type: 'varchar',
+            length: '100',
             isNullable: true,
           },
           {
             name: 'status',
-            type: 'varchar',
-            isNullable: false,
+            type: 'enum',
+            enum: [
+              'pending',
+              'completed',
+              'failed',
+              'disputed',
+            ] as TransactionStatus[],
             default: "'pending'",
-          },
-          {
-            name: 'slug',
-            type: 'varchar',
-            isNullable: false,
-          },
-          {
-            name: 'avatar',
-            type: 'varchar',
-            isNullable: true,
           },
           {
             name: 'created_at',
@@ -66,6 +64,16 @@ export class Request1763017503587 implements MigrationInterface {
             onUpdate: 'CURRENT_TIMESTAMP',
           },
         ],
+      }),
+    );
+
+    await queryRunner.createForeignKey(
+      'transaction',
+      new TableForeignKey({
+        columnNames: ['user_id'],
+        referencedColumnNames: ['id'],
+        referencedTableName: 'users',
+        onDelete: 'CASCADE',
       }),
     );
   }

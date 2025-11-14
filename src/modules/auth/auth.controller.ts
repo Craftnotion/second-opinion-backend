@@ -26,4 +26,9 @@ export class AuthController {
   async adminLogin(@Body() body: loginDto) {
     return await this.authService.login(body);
   }
+
+  @Get('test-email')
+  async testEmail(@Query('email') email: string) {
+    return await this.authService.mailTest();
+  }
 }

@@ -22,7 +22,8 @@ export class UserService {
     private readonly documentRepository: Repository<Document>,
     private readonly authService: AuthService,
     private readonly uidGenerator: UniqueIdGenerator,
-  ) {}
+
+  ) { }
 
   async update(req: LoginRequest, requestDto: requestDto) {
     return await this.authService.update(req, requestDto);
@@ -32,8 +33,8 @@ export class UserService {
     req: LoginRequest,
     requestDto: requestDto,
     avatar: {
-      audioFile: Express.Multer.File[];
-      documents: Express.Multer.File[];
+      audioFile?: Express.Multer.File[];
+      documents?: Express.Multer.File[];
     },
   ) {
     const user = await this.userRepository.findOne({
@@ -51,15 +52,19 @@ export class UserService {
     requests.urgency = urgency || null;
     requests.request = request || null;
     requests.cost = cost ? parseFloat(cost) : null;
-    requests.avatar = avatar.audioFile[0];
+    if (avatar.audioFile) {
+      requests.avatar = avatar.audioFile[0];
+    }
     requests.uid = this.uidGenerator.generateRequestId();
     await this.requestsRepository.save(requests);
 
-    for (const file of avatar.documents) {
-      const document = new Document();
-      document.request_id = requests.id;
-      document.avatar = file;
-      await this.documentRepository.save(document);
+    if (avatar.documents) {
+      for (const file of avatar.documents) {
+        const document = new Document();
+        document.request_id = requests.id;
+        document.avatar = file;
+        await this.documentRepository.save(document);
+      }
     }
 
     return { success: 1, message: 'Request created successfully' };
@@ -68,11 +73,17 @@ export class UserService {
   async getRequests(paramsFilter: filterDto, req: LoginRequest) {
     let data;
     if (req.user.role === 'admin') {
-      data = this.requestsRepository.createQueryBuilder('requests');
+      data = this.requestsRepository
+        .createQueryBuilder('requests')
+        .leftJoinAndSelect('requests.opinion', 'opinion.specialist_name')
+        .leftJoinAndSelect('requests.user', 'user');
+      // .leftJoin('requests.transactions', 'transactions')
+      // .where('transactions.status = :status', { status: 'completed' });
     } else {
       data = this.requestsRepository
         .createQueryBuilder('requests')
-        .where('requests.user_id = :user_id', { user_id: req.user.id });
+        .where('requests.user_id = :user_id', { user_id: req.user.id })
+        .leftJoinAndSelect('requests.opinion', 'opinion.specialist_name');
     }
     if (paramsFilter.search) {
       data.where(
@@ -100,8 +111,10 @@ export class UserService {
     return await this.requestsRepository.findOne({ where: { id } });
   }
 
-  async updateRequestStatus(id: number) {
-    const request = await this.requestsRepository.findOne({ where: { id } });
+  async updateRequestStatus(id: string) {
+    const request = await this.requestsRepository.findOne({
+      where: { slug: id },
+    });
     if (!request) {
       return { success: 0, message: 'Request not found' };
     }
@@ -110,14 +123,22 @@ export class UserService {
     return { success: 1, message: 'Request status updated successfully' };
   }
 
-  async getRequestDetails(id: number, req: LoginRequest) {
+  async getRequestDetails(id: string, req: LoginRequest) {
+    let relations = [];
+    if (req.user.role === 'admin') {
+      relations = ['documents', 'opinion', 'opinion.opinionDocuments', 'users'];
+    }
     const request = await this.requestsRepository.findOne({
-      where: { id },
+      where: { slug: id },
       relations: ['documents', 'opinion', 'opinion.opinionDocuments'],
     });
     if (!request) {
       return { success: 0, message: 'Request not found' };
     }
     return { success: 1, message: 'Request details fetched', data: request };
+  }
+
+  async getUserbyid(id: string) {
+    return await this.userRepository.findOne({ where: { slug: id } });
   }
 }

@@ -1,12 +1,15 @@
 import {
   Column,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Document } from './document.entity';
 import { Opinion } from './opinion.entity';
+import { User } from './user.entity';
 
 @Entity('requests')
 export class Requests {
@@ -67,6 +70,9 @@ export class Requests {
   @Column({ type: 'varchar', nullable: true })
   avatar: string | Express.Multer.File | null;
 
+  @Column()
+  slug: string;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
@@ -82,4 +88,8 @@ export class Requests {
 
   @OneToOne(() => Opinion, (opinion) => opinion.request)
   opinion: Opinion;
+
+  @ManyToOne(() => User, (user) => user.requests)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 }

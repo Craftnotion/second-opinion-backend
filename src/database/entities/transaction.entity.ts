@@ -1,0 +1,55 @@
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { Exclude } from 'class-transformer';
+import { User } from './user.entity';
+import { TransactionStatus } from 'src/types/types';
+
+@Entity()
+export class Transaction {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  user_id: number;
+
+  @Column({ default: 0 })
+  amount: number;
+
+  @Column({ default: 'pending' })
+  status: TransactionStatus;
+
+  @Column({ nullable: true })
+  razorpay_order_id: string;
+
+  @Index()
+  @Column({ nullable: true })
+  razorpay_payment_id: string;
+
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  public created_at: Date;
+
+  @UpdateDateColumn({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+    onUpdate: 'CURRENT_TIMESTAMP',
+  })
+  public updated_at: Date;
+
+  //Relations
+  @ManyToOne(() => User, (User) => User.id)
+  @JoinColumn({ name: 'User_id' })
+  @Exclude()
+  user: User;
+}
+
+export interface PaymentLink extends Transaction {
+  payment_link: string;
+}

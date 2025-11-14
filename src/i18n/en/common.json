@@ -1,0 +1,26 @@
+{
+  "common": {
+    "auth": {
+      "login": {
+        "send_otp": "OTP sent",
+        "successful": "Login successful"
+      },
+      "failed": "Authentication failed"
+    },
+    "profile": {
+      "uptodate": "Profile updated"
+    }
+  },
+  "email": {
+    "otp": {
+      "subject": "Your verification code",
+      "body": "Your OTP code is {{otp}}"
+    },
+    "greet": "Hello",
+    "invite-user": {
+      "subject": "You're invited",
+      "body": "You've been invited",
+      "greet": "Hello {{name}}"
+    }
+  }
+}

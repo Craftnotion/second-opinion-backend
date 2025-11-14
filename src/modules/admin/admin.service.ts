@@ -60,7 +60,11 @@ export class AdminService {
       document.avatar = file;
       await this.opinionDocumentRepository.save(document);
     }
-    await this.userService.updateRequestStatus(request.id);
+    await this.userService.updateRequestStatus(request.slug);
     return { success: 1, message: 'Opinion created successfully' };
+  }
+
+  async getRequestById(id: string, req: LoginRequest) {
+    return await this.userService.getRequestDetails(id, req);
   }
 }

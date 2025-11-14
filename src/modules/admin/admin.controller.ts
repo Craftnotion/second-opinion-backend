@@ -70,4 +70,12 @@ export class AdminController {
   ) {
     return await this.adminService.opinion(opinionDto, files);
   }
+
+  @Get('requests/:id')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth('authorization')
+  @ApiOperation({ summary: 'getting request by id' })
+  async getRequestById(@Req() req: LoginRequest, @Param('id') id: string) {
+    return await this.adminService.getRequestById(id, req);
+  }
 }

@@ -10,6 +10,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Code } from 'src/database/entities/code.entity';
 import { CodeService } from 'src/services/code/code.service';
 import { StringService } from 'src/services/string/string.service';
+import { MailQueueModule } from 'src/queue/email-queue/email-queue.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { StringService } from 'src/services/string/string.service';
     BullModule.registerQueue({
       name: 'text',
     }),
+    MailQueueModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, HashService, JwtService, CodeService, StringService],

@@ -1,0 +1,13 @@
+<html>
+  <body style="font-family: Arial, sans-serif;">
+    <img src="{{data.logo}}" alt="logo" style="max-width: 200px;" />
+    <h2>{{data.subject}}</h2>
+    <p>{{data.greet}},</p>
+    <p>{{data.body}}</p>
+    {{#if data.button}}
+      <p><a href="{{data.button.url}}" style="background: {{data.app_color}}; color: #fff; padding: 8px 12px; text-decoration:none;">{{data.button.label}}</a></p>
+    {{/if}}
+    <hr />
+    <small>{{data.app_name}}</small>
+  </body>
+</html>
