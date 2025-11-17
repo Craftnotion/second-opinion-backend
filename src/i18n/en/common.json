@@ -9,7 +9,8 @@
     "failed": "Authentication failed"
   },
   "profile": {
-    "uptodate": "Users Profile has been updated successfully"
+    "uptodate": "Users Profile has been updated successfully",
+    "verify_email_sent": "Verification email has been sent successfully"
   },
   "email": {
     "otp": {

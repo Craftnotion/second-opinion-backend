@@ -9,7 +9,20 @@ export class TextQueueProcessor extends WorkerHost {
   async process(job: Job<any, any, string>): Promise<any> {
     let { phone, code } = job.data;
 
-    // Basic logging to help debug whether the job is being processed
+    console.log('TextQueueProcessor: Processing SMS job', {
+      jobId: job.id,
+      phone,
+      code,
+      data: job.data,
+    });
+
+    if (!phone || !code) {
+      const error = new Error(
+        `Missing required data: phone=${phone}, code=${code}`,
+      );
+      console.error('TextQueueProcessor: Invalid job data', error);
+      throw error;
+    }
 
     const authKey = '272160A7NN1J35i5cb096b1'; // Replace with your actual auth key
     const mobileNo = `91${phone}`;
@@ -18,17 +31,50 @@ export class TextQueueProcessor extends WorkerHost {
     const url = `https://api.msg91.com/api/sendhttp.php?mobiles=${encodeURIComponent(mobileNo)}&authkey=${authKey}&route=4&sender=SECAID&message=${encodeURIComponent(smsContent)}&DLT_TE_ID=1307162799550106094`;
 
     try {
-      const res = await fetch(url as any);
-      try {
-        await res.text();
-      } catch (e) {
-        console.log(
-          'TextQueueProcessor: msg91 response received but failed to read body',
-          e,
+      console.log('TextQueueProcessor: Sending SMS request to msg91', {
+        mobileNo,
+        url: url.replace(authKey, '***'),
+      });
+
+      const res = await fetch(url);
+      const responseText = await res.text();
+
+      console.log('TextQueueProcessor: msg91 response', {
+        status: res.status,
+        statusText: res.statusText,
+        response: responseText,
+      });
+
+      // msg91 returns different response codes
+      // Success responses typically contain "SMS sent successfully" or a request ID
+      if (!res.ok) {
+        throw new Error(
+          `msg91 API error: ${res.status} ${res.statusText} - ${responseText}`,
         );
       }
+
+      // Check if response indicates failure
+      if (
+        responseText.includes('Invalid') ||
+        responseText.includes('error') ||
+        responseText.includes('failed')
+      ) {
+        throw new Error(`msg91 API returned error: ${responseText}`);
+      }
+
+      console.log('TextQueueProcessor: SMS sent successfully', {
+        phone,
+        response: responseText,
+      });
+
+      return { success: true, response: responseText };
     } catch (error) {
-      console.log('TextQueueProcessor: fetch error', error);
+      console.error('TextQueueProcessor: Failed to send SMS', {
+        phone,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error; // Re-throw to mark job as failed
     }
   }
 }

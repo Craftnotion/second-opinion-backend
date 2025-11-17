@@ -72,7 +72,16 @@ export class AuthService {
     }
     if (!otp) {
       let code = await this.codeService.generateOTP(phone, 'phone');
-      await this.textQueue.add('send-sms', { phone, code });
+      try {
+        await this.textQueue.add('send-sms', { phone, code });
+        console.log('AuthService: SMS job added to queue', { phone, code });
+      } catch (error) {
+        console.error('AuthService: Failed to add SMS job to queue', {
+          phone,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Continue anyway - OTP is still generated and returned
+      }
       return {
         success: 2,
         message: 'common.auth.login.send_otp',
@@ -121,13 +130,11 @@ export class AuthService {
         }
         customer.email = email;
         await this.userRepository.save(customer);
-        const token = await this.GenerateToken(instanceToPlain(customer), '7d');
         return {
           success: 1,
           message: 'common.profile.verify_email_sent',
           data: {
             user: customer,
-            token,
           },
         };
       } else {
@@ -144,13 +151,11 @@ export class AuthService {
     }
 
     await this.userRepository.save(customer);
-    const token = await this.GenerateToken(instanceToPlain(customer), '7d');
     return {
       success: 1,
       message: 'common.profile.uptodate',
       data: {
         user: customer,
-        token,
       },
     };
   }
