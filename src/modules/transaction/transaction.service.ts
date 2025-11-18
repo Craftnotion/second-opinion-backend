@@ -51,7 +51,7 @@ export class TransactionService {
     }
 
     const transaction = this.TransactionRepository.create({
-      user_id: user?.id,
+     user: user,
       amount: Number(amount),
       status: 'pending' as TransactionStatus,
       request_id: request.id,

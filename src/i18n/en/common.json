@@ -36,5 +36,11 @@
     "failed": "Failed to create request",
     "not_found": "Request not found",
     "found": "Request details has been fetched successfully"
+  },
+  "transaction": {
+    "created": "Transaction has been created successfully",
+    "verified": "Transaction has been verified successfully",
+    "not_found": "Transaction not found",
+    "found": "Transaction details has been fetched successfully"
   }
 }
