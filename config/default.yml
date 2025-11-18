@@ -8,7 +8,7 @@ frontend:
   base_url: http://localhost:3000
 
 app:
-  local: http://192.168.0.13:3001
+  local: http://localhost:3001
 
 organisation:
   has_organisation: true
@@ -30,7 +30,7 @@ typeorm:
   logging: true
   connection: mysql
   username: root
-  password: Anilkumar@1423
+  password: 
   database: second_opinion
   secure: true
 

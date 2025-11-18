@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/database/entities/user.entity';
 import { Repository } from 'typeorm';
@@ -11,6 +11,9 @@ import { filterDto } from '../utils/param-filter.dto';
 import { paginate } from 'nestjs-typeorm-paginate';
 import { UniqueIdGenerator } from 'src/services/uid-generator/uid-generator.service';
 import { MailService } from 'src/services/email/email.service';
+import { TransactionService } from '../transaction/transaction.service';
+import { Transaction } from 'src/database/entities/transaction.entity';
+import { TransactionStatus } from 'src/types/types';
 
 @Injectable()
 export class UserService {
@@ -25,6 +28,10 @@ export class UserService {
     private readonly documentRepository: Repository<Document>,
     private readonly authService: AuthService,
     private readonly uidGenerator: UniqueIdGenerator,
+    @Inject(forwardRef(() => TransactionService))
+    private readonly transactionService: TransactionService,
+    @InjectRepository(Transaction)
+    private readonly transactionRepository: Repository<Transaction>,
   ) {}
 
   async update(req: LoginRequest, requestDto: requestDto) {
@@ -87,7 +94,48 @@ export class UserService {
       specialty: savedRequest.specialty ?? '',
       urgency: savedRequest.urgency ?? '',
     });
-    return { success: 1, message: 'common.request.created' };
+
+    // Create transaction and Razorpay order
+    if (savedRequest.cost && savedRequest.cost > 0) {
+      try {
+        const orderData = await this.transactionService.createOrderForRequest(
+          user.id.toString(),
+          savedRequest.id.toString(),
+          savedRequest.cost.toString(),
+        );
+
+        return {
+          success: 1,
+          message: 'common.request.created',
+          data: {
+            id: savedRequest.id,
+            cost: savedRequest.cost,
+            specialty: savedRequest.specialty,
+            urgency: savedRequest.urgency,
+            request: savedRequest,
+            order: orderData,
+          },
+        };
+      } catch (error) {
+        console.error('Error creating payment order:', error);
+        return {
+          success: 0,
+          message: 'Request created but payment order failed',
+        };
+      }
+    }
+
+    return {
+      success: 1,
+      message: 'common.request.created',
+      data: {
+        id: savedRequest.id,
+        cost: savedRequest.cost,
+        specialty: savedRequest.specialty,
+        urgency: savedRequest.urgency,
+        request: savedRequest,
+      },
+    };
   }
 
   async getRequests(paramsFilter: filterDto, req: LoginRequest) {
@@ -128,6 +176,18 @@ export class UserService {
   }
 
   async getRequestById(id: string) {
+    // Try to find by numeric ID first, then by slug
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId)) {
+      const request = await this.requestsRepository.findOne({
+        where: { id: numericId },
+        relations: ['user'],
+      });
+      if (request) {
+        return request;
+      }
+    }
+    // Fallback to slug lookup
     return await this.requestsRepository.findOne({
       where: { slug: id },
       relations: ['user'],
@@ -162,6 +222,15 @@ export class UserService {
   }
 
   async getUserbyid(id: string) {
+    // Try to find by numeric ID first, then by slug
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId)) {
+      const user = await this.userRepository.findOne({ where: { id: numericId } });
+      if (user) {
+        return user;
+      }
+    }
+    // Fallback to slug lookup
     return await this.userRepository.findOne({ where: { slug: id } });
   }
 }

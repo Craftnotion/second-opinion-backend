@@ -27,7 +27,7 @@ export class AuthService {
     private readonly hashService: HashService,
     private readonly codeService: CodeService,
     private readonly mailService: MailService,
-  ) {}
+  ) { }
 
   async GenerateToken(data: any, time: string = '100d'): Promise<string> {
     // Ensure payload is a plain object. Convert class instances to plain objects
@@ -111,42 +111,56 @@ export class AuthService {
     const customer = await this.userRepository.findOneOrFail({
       where: { id: req.user.id },
     });
-    customer.email === null ||
-      customer.full_name === null ||
-      customer.phone === null ||
-      customer.location === null;
     customer.full_name = full_name;
     customer.phone = phone;
     customer.location = location;
 
-    if (email && email !== customer.email) {
+    // Normalize email values for comparison (handle null, undefined, empty string)
+    const currentEmail = customer.email?.trim() || null;
+    const newEmail = email?.trim() || null;
+
+    // Check if email is being updated (different from current email)
+    if (newEmail && newEmail !== currentEmail) {
+      console.log('Email update detected:', { currentEmail, newEmail, hasOtp: !!otp });
+
       if (otp) {
-        const isValid = await this.codeService.verifyOTP(email, otp, 'email');
+        const isValid = await this.codeService.verifyOTP(newEmail, otp, 'email');
         if (!isValid) {
           return {
             success: 0,
             message: 'common.auth.failed',
           };
         }
-        customer.email = email;
+        customer.email = newEmail;
         await this.userRepository.save(customer);
         return {
           success: 1,
-          message: 'common.profile.verify_email_sent',
+          message: 'common.profile.uptodate',
           data: {
             user: customer,
           },
         };
       } else {
-        const code = await this.codeService.generateOTP(email, 'email');
-        await this.mailService.otpMail({ otp: code, identity: email });
-        return {
-          success: 2,
-          message: 'common.profile.verify_email_sent',
-          data: {
-            otp: code,
-          },
-        };
+        try {
+          console.log('Generating OTP for email:', newEmail);
+          const code = await this.codeService.generateOTP(newEmail, 'email');
+          console.log('OTP generated successfully:', code);
+          await this.mailService.otpMail({ otp: code, identity: newEmail });
+          console.log('OTP email queued successfully');
+          return {
+            success: 2,
+            message: 'common.profile.verify_email_sent',
+            data: {
+              otp: code,
+            },
+          };
+        } catch (error) {
+          console.error('Error generating OTP:', error);
+          return {
+            success: 0,
+            message: 'common.auth.failed',
+          };
+        }
       }
     }
 
