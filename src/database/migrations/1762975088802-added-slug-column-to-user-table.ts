@@ -5,7 +5,7 @@ export class AddedSlugColumnToUserTable1762975088802 implements MigrationInterfa
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`
             ALTER TABLE users 
-            ADD COLUMN slug VARCHAR(255) ISNULL UNIQUE 
+            ADD COLUMN slug VARCHAR(255) NULL UNIQUE 
             AFTER full_name
         `);
     }

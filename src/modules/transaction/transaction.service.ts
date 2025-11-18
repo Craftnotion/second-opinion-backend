@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 // import { CreateTransactionDto } from './dto/transaction.dto';
 
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,13 +19,15 @@ export class TransactionService {
   private razorpay: any;
   private readonly logger = new Logger(TransactionService.name);
   private razorpayConfig = {
-    api_key_id: 'rzp_live_RFnM0FDSmaSt4x',
-    api_key_secret: 'Z9Q95tBtadnstE1A5RX3Wq1x',
+    api_key_id: 'rzp_test_RgosfgTam2peAi',
+    api_key_secret: '1ltxnLg1m7VA5nZxDIE4EzpA',
     webhook_secret: 'NESTJSBACKEND@CTIVE!@#$%AUTHT',
+    merchant_id: 'RB53YT2akk4wV2',
   };
   constructor(
     @InjectRepository(Transaction)
     private readonly TransactionRepository: Repository<Transaction>,
+    @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
     private readonly mailService: MailService,
   ) {
@@ -34,75 +36,82 @@ export class TransactionService {
       key_secret: this.razorpayConfig.api_key_secret,
     });
   }
+  async createOrderForRequest(
+    userId: string,
+    requestId: string,
+    amount: string,
+  ): Promise<Record<string, any>> {
+    const user = await this.userService.getUserbyid(userId);
+    const request = await this.userService.getRequestById(requestId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    if (!request) {
+      throw new Error('Request not found');
+    }
+
+    const transaction = this.TransactionRepository.create({
+      user_id: user?.id,
+      amount: Number(amount),
+      status: 'pending' as TransactionStatus,
+      request_id: request.id,
+    });
+    const savedTransaction =
+      await this.TransactionRepository.save(transaction);
+
+    const options = {
+      amount: Number(amount) * 100, // amount in the smallest currency unit
+      currency: 'INR',
+      receipt: `receipt_order_${savedTransaction.id}`,
+      notes: {
+        user_id: userId,
+        transaction_id: savedTransaction.id,
+        user_phone: user?.phone || '',
+        user_name: user?.full_name || '',
+        user_email: user?.email || '',
+      },
+    };
+
+    const order = await this.razorpay.orders.create(options);
+    console.log('Razorpay Order:', order);
+    
+    const transactionWithOrderId =
+      await this.TransactionRepository.findOneOrFail({
+        where: { id: savedTransaction.id },
+      });
+    transactionWithOrderId.razorpay_order_id = order.id;
+    await this.TransactionRepository.save(transactionWithOrderId);
+
+    return {
+      id: order.id,
+      merchant_id: this.razorpayConfig.merchant_id,
+      entity: order.entity,
+      amount: order.amount,
+      amount_paid: order.amount_paid,
+      amount_due: order.amount_due,
+      currency: order.currency,
+      receipt: order.receipt,
+      status: order.status,
+      attempts: order.attempts,
+      created_at: order.created_at,
+      key: this.razorpayConfig.api_key_id,
+    };
+  }
+
   async CreateOrder(
     body: TransactionDto,
   ): Promise<HttpResponse<Record<string, any>>> {
     try {
-      // console.log('User in CreateOrder:', body);
-      //first we gonna create a record in our database with status as pending
-      const user = await this.userService.getUserbyid(body.Userid);
-      const request = await this.userService.getRequestById(body.requestId);
-      if (!user) {
-        return {
-          success: 0,
-          message: 'common.user.not_found',
-        };
-      }
-      if (!request) {
-        return {
-          success: 0,
-          message: 'common.request.not_found',
-        };
-      }
-      const transaction = this.TransactionRepository.create({
-        user_id: user?.id,
-        amount: Number(body.amount),
-        status: 'pending' as TransactionStatus,
-        request_id: request.id,
-      });
-      const savedTransaction =
-        await this.TransactionRepository.save(transaction);
-
-      //now we gonna create order in razorpay so that we can get the order_id and transaction id to send it to frontend
-
-      const options = {
-        amount: Number(body.amount) * 100, // amount in the smallest currency unit
-        currency: 'INR',
-        receipt: `receipt_order_${savedTransaction.id}`,
-        notes: {
-          user_id: body.Userid,
-          transaction_id: savedTransaction.id,
-          user_phone: user?.phone || '',
-          user_name: user?.full_name || '',
-          user_email: user?.email || '',
-        },
-      };
-      //now we gonna create an actual order in razorpay
-      const order = await this.razorpay.orders.create(options);
-      console.log('Razorpay Order:', order);
-      const transactionWithOrderId =
-        await this.TransactionRepository.findOneOrFail({
-          where: { id: savedTransaction.id },
-        });
-      transactionWithOrderId.razorpay_order_id = order.id;
-      await this.TransactionRepository.save(transactionWithOrderId);
+      const orderData = await this.createOrderForRequest(
+        body.Userid,
+        body.requestId,
+        body.amount,
+      );
 
       return {
         success: 1,
         message: 'common.transaction.order.created',
-        data: {
-          id: order.id,
-          entity: order.entity,
-          amount: order.amount,
-          amount_paid: order.amount_paid,
-          amount_due: order.amount_due,
-          currency: order.currency,
-          receipt: order.receipt,
-          status: order.status,
-          attempts: order.attempts,
-          created_at: order.created_at,
-          key: this.razorpayConfig.api_key_id,
-        },
+        data: orderData,
       };
     } catch (error) {
       console.error('Error in CreateOrder:', error);

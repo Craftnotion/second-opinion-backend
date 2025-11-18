@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
 import { TransactionController } from './transaction.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -9,10 +9,11 @@ import { MailQueueModule } from 'src/queue/email-queue/email-queue.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Transaction]),
-    UserModule,
+    forwardRef(() => UserModule),
     MailQueueModule,
   ],
   controllers: [TransactionController],
   providers: [TransactionService],
+  exports: [TransactionService],
 })
 export class TransactionModule {}
