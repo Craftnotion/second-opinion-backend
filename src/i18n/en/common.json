@@ -2,14 +2,15 @@
   "auth": {
     "login": {
       "send_otp": "An OTP has been sent to the registered phone number",
-      "successful": "User has Logeed in successful",
+      "successful": "User has Logged in successful",
 
       "not_admin": "You are not authorized to access admin panel"
     },
     "failed": "Authentication failed"
   },
   "profile": {
-    "uptodate": "Users Profile has been updated successfully"
+    "uptodate": "Users Profile has been updated successfully",
+    "verify_email_sent": "An otp has been sent to the email for verification"
   },
   "email": {
     "otp": {

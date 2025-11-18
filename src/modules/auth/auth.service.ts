@@ -124,7 +124,7 @@ export class AuthService {
         const token = await this.GenerateToken(instanceToPlain(customer), '7d');
         return {
           success: 1,
-          message: 'common.profile.verify_email_sent',
+          message: 'common.profile.uptodate',
           data: {
             user: customer,
             token,

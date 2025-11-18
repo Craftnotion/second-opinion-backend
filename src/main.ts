@@ -24,7 +24,7 @@ async function bootstrap() {
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-  await app.listen('3001','192.168.0.13');
+  await app.listen('3001', '192.168.0.10');
   console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
