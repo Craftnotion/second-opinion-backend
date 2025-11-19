@@ -1,11 +1,17 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnModuleInit } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { MailService } from 'src/services/email/email.service';
 
 @Processor('email')
-export class MailQueueConsumer extends WorkerHost {
+export class MailQueueConsumer extends WorkerHost implements OnModuleInit {
   constructor(private EmailService: MailService) {
     super();
+    console.log('MailQueueConsumer: Constructor called, processor initialized');
+  }
+
+  async onModuleInit() {
+    console.log('MailQueueConsumer: onModuleInit called - processor is ready');
   }
 
   async process(job: Job<any, any, string>): Promise<any> {

@@ -55,11 +55,30 @@ export class MailService {
   }
 
   async otpMail(data: { otp: string; identity: string }) {
-    await this.queue.add(
-      'send-email',
-      { type: 'otp', ...data },
-      { attempts: 3, removeOnComplete: true },
-    );
+    try {
+      console.log('MailService.otpMail: Adding job to queue', {
+        email: data.identity,
+        queueName: 'email',
+        jobName: 'send-email',
+      });
+      const job = await this.queue.add(
+        'send-email',
+        { type: 'otp', ...data },
+        { attempts: 3, removeOnComplete: true },
+      );
+      console.log('MailService.otpMail: Job added successfully', {
+        jobId: job.id,
+        jobName: job.name,
+        email: data.identity,
+      });
+    } catch (error) {
+      console.error('MailService.otpMail: Error adding job to queue', {
+        error: error?.message,
+        stack: error?.stack,
+        email: data.identity,
+      });
+      throw error;
+    }
   }
 
   public async requestCreated(data: {

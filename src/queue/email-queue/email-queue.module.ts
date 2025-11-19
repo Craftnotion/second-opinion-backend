@@ -20,4 +20,8 @@ import { MailQueueConsumer } from './email-queue.processor';
   providers: [MailQueueConsumer, MailService, StringService],
   exports: [MailQueueConsumer, MailService, StringService],
 })
-export class MailQueueModule {}
+export class MailQueueModule {
+  constructor() {
+    console.log('MailQueueModule: Module initialized');
+  }
+}
