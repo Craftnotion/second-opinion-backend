@@ -1,11 +1,16 @@
-import { Seeder } from 'typeorm-extension';
+import { DataSource } from 'typeorm';
+import { Seeder, SeederFactoryManager } from 'typeorm-extension';
+import { User } from '../entities/user.entity';
 
 export default class AdminSeed implements Seeder {
-  async run(dataSource: import('typeorm').DataSource): Promise<void> {
-    console.log('Seed runing');
+  async run(
+    dataSource: DataSource,
+    factoryManager: SeederFactoryManager
+  ): Promise<void> {
+    console.log('Seed running');
     const adminEmail = 'craftnotion@gmail.com';
-    const adminPassword = 'Craftnotion@123';
-    const userRepository = dataSource.getRepository('users');
+    const adminPhone = '9849551414';
+    const userRepository = dataSource.getRepository(User);
 
     const adminExists = await userRepository.findOne({
       where: { email: adminEmail },
@@ -16,9 +21,8 @@ export default class AdminSeed implements Seeder {
         full_name: 'Admin',
         slug: 'admin-user',
         email: adminEmail,
-        password: adminPassword,
         role: 'admin',
-        phone: '9849551414',
+        phone: adminPhone,
         location: 'active',
       });
       await userRepository.save(adminUser);
