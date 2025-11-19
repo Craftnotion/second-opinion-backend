@@ -32,14 +32,25 @@ export class MailService {
 
   private async sendNow(email: string) {
     try {
-      await this.mailerService.sendMail({
+      console.log('Attempting to send email to:', email);
+      console.log('Email subject:', this.mail_data.subject);
+      const result = await this.mailerService.sendMail({
         to: email,
         subject: this.mail_data.subject,
         template: 'email/template',
         context: { data: this.mail_data },
       });
+      console.log('Email sent successfully to:', email, result);
+      return result;
     } catch (error) {
-      console.log('error in sending email ', error);
+      console.error('Error in sending email to:', email, error);
+      console.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        code: error?.code,
+        response: error?.response,
+      });
+      throw error; // Re-throw so the queue can retry
     }
   }
 

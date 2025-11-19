@@ -12,10 +12,14 @@ const templateDir = existsSync(distI18n) ? distI18n : srcI18n;
 export const MailerConfig = {
   transport: {
     host: mailConfig.host,
-    secure: false,
+    port: parseInt(mailConfig.port || '587'),
+    secure: false, // true for 465, false for other ports
     auth: {
       user: mailConfig.user,
       pass: mailConfig.password,
+    },
+    tls: {
+      rejectUnauthorized: false, // For development, set to true in production
     },
   },
   defaults: {
