@@ -1,5 +1,4 @@
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { DataSource } from 'typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
@@ -7,8 +6,17 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.development' });
 dotenv.config({ path: '.env' });
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Use process.cwd() as base and resolve relative paths
+const getBasePath = () => {
+  // In CommonJS, __dirname is available
+  if (typeof __dirname !== 'undefined') {
+    return __dirname;
+  }
+  // In ES modules, calculate from process.cwd()
+  return join(process.cwd(), 'src', 'config');
+};
+
+const basePath = getBasePath();
 
 async function getDataSource(): Promise<DataSource> {
   const app = await NestFactory.createApplicationContext(
@@ -29,9 +37,9 @@ async function getDataSource(): Promise<DataSource> {
     synchronize: false,
     logging: false,
     entities: [
-      join(__dirname, '../', 'database', 'entities', '**', '*.entity.{ts,js}'),
+      join(basePath, '../', 'database', 'entities', '**', '*.entity.{ts,js}'),
     ],
-    migrations: [join(__dirname, '../', 'database', 'migrations/*.ts')]
+    migrations: [join(basePath, '../', 'database', 'migrations/*.ts')]
   });
 }
 
