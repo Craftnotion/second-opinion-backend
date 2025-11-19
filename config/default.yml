@@ -50,11 +50,11 @@ date_format: "LLL yy"
 time_format: "hh:mm a"
 
 mail:
-  host: sandbox.smtp.mailtrap.io
-  port: 2525
-  user: 96c6e6f69bf6e8
-  password: f75888149eeac8
-  from: craftnotion@gmail.com
+  host: smtp.zoho.com
+  port: 587
+  user: contact.us@craftnotion.com
+  password: "@Ctive123gcs"
+  from: contact.us@craftnotion.com
 
 # App branding for emails
 name: Second Opinion
