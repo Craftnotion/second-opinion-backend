@@ -18,7 +18,7 @@ export default class AdminSeed implements Seeder {
         email: adminEmail,
         password: adminPassword,
         role: 'admin',
-        phone: '0000000000',
+        phone: '9849551414',
         location: 'active',
       });
       await userRepository.save(adminUser);
