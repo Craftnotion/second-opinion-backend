@@ -3,10 +3,10 @@ name: Craftnotion E2E
 on:
   push:
     branches: [ main ]
+
 jobs:
   build:
-
-    runs-on: 
+    runs-on:
       labels: [ e2 ]
 
     strategy:
