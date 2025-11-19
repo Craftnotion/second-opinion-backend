@@ -14,6 +14,7 @@ export const MailerConfig = {
     host: mailConfig.host,
     port: parseInt(mailConfig.port || '587'),
     secure: false, // true for 465, false for other ports
+    debug: true,
     auth: {
       user: mailConfig.user,
       pass: mailConfig.password,
