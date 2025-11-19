@@ -5,10 +5,10 @@ jwt:
 node_env: development
 
 frontend:
-  base_url: http://localhost:3000
+  base_url: https://opinions.secondaid.in
 
 app:
-  local: http://192.168.0.10:3001
+  local: https://opinions-api.secondaid.in
 
 organisation:
   has_organisation: true
@@ -30,7 +30,7 @@ typeorm:
   logging: true
   connection: mysql
   username: root
-  password: password
+  password: "@Ctive123gcs"
   database: second_opinion
   secure: true
 
@@ -45,9 +45,9 @@ aws:
 
 allowed_file_size: 1000000
 
-date_format: 'LLL yy'
+date_format: "LLL yy"
 
-time_format: 'hh:mm a'
+time_format: "hh:mm a"
 
 mail:
   host: sandbox.smtp.mailtrap.io
@@ -58,8 +58,8 @@ mail:
 
 # App branding for emails
 name: Second Opinion
-background: '#f8f9fa'
-color: '#007bff'
+background: "#f8f9fa"
+color: "#007bff"
 
 frontend_url: http://localhost:3000
 
