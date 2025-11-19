@@ -1,10 +1,14 @@
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { DataSource } from 'typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.development' });
 dotenv.config({ path: '.env' });
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 async function getDataSource(): Promise<DataSource> {
   const app = await NestFactory.createApplicationContext(
