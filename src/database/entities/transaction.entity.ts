@@ -19,12 +19,6 @@ export class Transaction {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  user_id: number;
-
-  @Column()
-  transaction_id: number;
-
   @Column({ default: 0 })
   amount: number;
 
@@ -58,7 +52,7 @@ export class Transaction {
   user: User;
 
   @OneToOne(() => Requests, (request) => request.transaction)
-  @JoinColumn({ name: 'transaction_id' })
+  @JoinColumn({ name: 'request_id' })
   request: Request;
 }
 
