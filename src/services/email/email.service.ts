@@ -32,15 +32,14 @@ export class MailService {
 
   private async sendNow(email: string) {
     try {
-      console.log('Attempting to send email to:', email);
-      console.log('Email subject:', this.mail_data.subject);
+
       const result = await this.mailerService.sendMail({
         to: email,
         subject: this.mail_data.subject,
         template: 'email/template',
         context: { data: this.mail_data },
       });
-      console.log('Email sent successfully to:', email, result);
+    
       return result;
     } catch (error) {
       console.error('Error in sending email to:', email, error);
@@ -56,21 +55,12 @@ export class MailService {
 
   async otpMail(data: { otp: string; identity: string }) {
     try {
-      console.log('MailService.otpMail: Adding job to queue', {
-        email: data.identity,
-        queueName: 'email',
-        jobName: 'send-email',
-      });
       const job = await this.queue.add(
         'send-email',
         { type: 'otp', ...data },
         { attempts: 3, removeOnComplete: true },
       );
-      console.log('MailService.otpMail: Job added successfully', {
-        jobId: job.id,
-        jobName: job.name,
-        email: data.identity,
-      });
+  
     } catch (error) {
       console.error('MailService.otpMail: Error adding job to queue', {
         error: error?.message,
@@ -88,7 +78,6 @@ export class MailService {
     urgency?: string;
   }) {
     const project_name = data.specialty || data.urgency || '';
-    console.log('Queueing new application email to ', data.email);
     await this.queue.add(
       'send-email',
       {
@@ -108,7 +97,7 @@ export class MailService {
     request: string;
     url?: string;
   }) {
-    console.log('Queueing opinion created email to ', data.email);
+
     await this.queue.add(
       'send-email',
       {
@@ -130,7 +119,7 @@ export class MailService {
     paymentId: string;
     paidAt: string;
   }) {
-    console.log('Queueing payment success email to ', data.to);
+
     await this.queue.add(
       'send-email',
       {
@@ -159,7 +148,6 @@ export class MailService {
       phone: string;
     };
   }) {
-    console.log('Queueing payment admin notification email');
     await this.queue.add(
       'send-email',
       {

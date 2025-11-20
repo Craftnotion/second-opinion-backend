@@ -74,7 +74,6 @@ export class AuthService {
       let code = await this.codeService.generateOTP(phone, 'phone');
       try {
         await this.textQueue.add('send-sms', { phone, code });
-        console.log('AuthService: SMS job added to queue', { phone, code });
       } catch (error) {
         console.error('AuthService: Failed to add SMS job to queue', {
           phone,
@@ -121,7 +120,6 @@ export class AuthService {
 
     // Check if email is being updated (different from current email)
     if (newEmail && newEmail !== currentEmail) {
-      console.log('Email update detected:', { currentEmail, newEmail, hasOtp: !!otp });
 
       if (otp) {
         const isValid = await this.codeService.verifyOTP(newEmail, otp, 'email');
@@ -142,11 +140,11 @@ export class AuthService {
         };
       } else {
         try {
-          console.log('Generating OTP for email:', newEmail);
+          
           const code = await this.codeService.generateOTP(newEmail, 'email');
-          console.log('OTP generated successfully:', code);
+          
           await this.mailService.otpMail({ otp: code, identity: newEmail });
-          console.log('OTP email queued successfully');
+        
           return {
             success: 2,
             message: 'common.profile.verify_email_sent',

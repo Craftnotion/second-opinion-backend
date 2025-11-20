@@ -9,13 +9,6 @@ export class TextQueueProcessor extends WorkerHost {
   async process(job: Job<any, any, string>): Promise<any> {
     let { phone, code } = job.data;
 
-    console.log('TextQueueProcessor: Processing SMS job', {
-      jobId: job.id,
-      phone,
-      code,
-      data: job.data,
-    });
-
     if (!phone || !code) {
       const error = new Error(
         `Missing required data: phone=${phone}, code=${code}`,
@@ -31,19 +24,10 @@ export class TextQueueProcessor extends WorkerHost {
     const url = `https://api.msg91.com/api/sendhttp.php?mobiles=${encodeURIComponent(mobileNo)}&authkey=${authKey}&route=4&sender=SECAID&message=${encodeURIComponent(smsContent)}&DLT_TE_ID=1307162799550106094`;
 
     try {
-      console.log('TextQueueProcessor: Sending SMS request to msg91', {
-        mobileNo,
-        url: url.replace(authKey, '***'),
-      });
 
       const res = await fetch(url);
       const responseText = await res.text();
 
-      console.log('TextQueueProcessor: msg91 response', {
-        status: res.status,
-        statusText: res.statusText,
-        response: responseText,
-      });
 
       // msg91 returns different response codes
       // Success responses typically contain "SMS sent successfully" or a request ID
@@ -61,11 +45,6 @@ export class TextQueueProcessor extends WorkerHost {
       ) {
         throw new Error(`msg91 API returned error: ${responseText}`);
       }
-
-      console.log('TextQueueProcessor: SMS sent successfully', {
-        phone,
-        response: responseText,
-      });
 
       return { success: true, response: responseText };
     } catch (error) {

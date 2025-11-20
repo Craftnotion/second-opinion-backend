@@ -101,8 +101,6 @@ export class UserService {
           const transaction = await this.transactionRepository.findOne({
             where: { id: orderData.transaction_id },
           });
-
-          console.log('Transaction created with ID:', transaction);
         }
 
         return {

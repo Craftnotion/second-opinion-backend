@@ -554,11 +554,16 @@ export class TransactionService {
 
     console.log('Notifying payment success for transaction:', transaction);
     console.log('Previous status:', previousStatus);
-    const user = await this.userService.getUserbyid(transaction.company_id);
+    // NOTE: transaction entity has `user_id`, not `company_id`.
+    // Using `company_id` was returning undefined which led to an incorrect user lookup
+    // and mails being delivered to an unintended recipient (e.g. id 0). Use `user_id`.
+    const user = await this.userService.getUserbyid(
+      transaction.user_id?.toString() || '',
+    );
 
     if (!user?.email) {
       this.logger.warn(
-        `Payment success email skipped: company email missing for transaction ${transaction.id}`,
+        `Payment success email skipped: user email missing for transaction ${transaction.id} (user_id: ${transaction.user_id})`,
       );
       return;
     }
