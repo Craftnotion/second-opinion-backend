@@ -190,143 +190,165 @@ export class MailService {
   }
   public async handleJob(data: MailJobPayload) {
     const { type } = data;
+    const dataPreview: Record<string, unknown> = {};
+    
+    if (type === 'otp') {
+      const payload = data as OtpMailPayload;
+      dataPreview.identity = payload.identity;
+      dataPreview.otp = true;
+    } else if (type === 'new-application' || type === 'opinion-created') {
+      const payload = data as NewApplicationPayload | OpinionCreatedPayload;
+      dataPreview.email = payload.email;
+    } else if (this.isGenericPaymentPayload(data)) {
+      dataPreview.to = data.to;
+    } else if (type === 'payment-status-changed') {
+      const payload = data as PaymentStatusChangedPayload;
+      dataPreview.to = payload.to;
+    } else if (type === 'payment-admin-notification') {
+      const payload = data as PaymentAdminNotificationPayload;
+      dataPreview.email = payload.email;
+    }
+    
     console.log('MailService.handleJob: received job', {
       type,
-      dataPreview: {
-        ...(this.isGenericPaymentPayload(data) ? { to: data.to } : {}),
-        ...(type === 'otp'
-          ? { identity: (data as OtpMailPayload).identity, otp: true }
-          : {}),
-        ...(type === 'new-application' || type === 'opinion-created'
-          ? { email: (data as NewApplicationPayload | OpinionCreatedPayload).email }
-          : {}),
-      },
+      dataPreview,
     });
 
     switch (type) {
-      case 'otp':
+      case 'otp': {
+        const payload = data as OtpMailPayload;
         this.mail_data.subject =
           this.stringService.formatMessage(`email.otp.subject`);
         this.mail_data.body = this.stringService.formatMessage(
           `email.otp.body`,
-          { otp: data.otp },
+          { otp: payload.otp },
         );
         this.mail_data.greet = this.stringService.formatMessage(`email.greet`);
-        this.mail_data.button = { url: '#', label: data.otp };
+        this.mail_data.button = { url: '#', label: payload.otp };
 
-        await this.sendNow(data.identity);
+        await this.sendNow(payload.identity);
         break;
-      case 'new-application':
+      }
+      case 'new-application': {
+        const payload = data as NewApplicationPayload;
         this.mail_data.subject = this.stringService.formatMessage(
           `email.new-application.subject`,
         );
         this.mail_data.body = this.stringService.formatMessage(
           `email.new-application.body`,
           {
-            user_name: data.user_name || '',
-            applicant_name: data.applicant_name || '',
-            project_name: data.project_name || '',
+            user_name: payload.user_name || '',
+            applicant_name: payload.applicant_name || '',
+            project_name: payload.project_name || '',
           },
         );
         this.mail_data.greet = this.stringService.formatMessage(
           `email.new-application.greet`,
-          { user_name: data.user_name || '' },
+          { user_name: payload.user_name || '' },
         );
-        this.mail_data.button = { url: data.url || '#', label: 'See Details' };
+        this.mail_data.button = { url: payload.url || '#', label: 'See Details' };
 
-        await this.sendNow(data.email);
+        await this.sendNow(payload.email);
         break;
-      case 'opinion-created':
+      }
+      case 'opinion-created': {
+        const payload = data as OpinionCreatedPayload;
         this.mail_data.subject = this.stringService.formatMessage(
           `email.opinion-created.subject`,
-          { request: data.request || '' },
+          { request: payload.request || '' },
         );
         this.mail_data.body = this.stringService.formatMessage(
           `email.opinion-created.body`,
           {
-            user_name: data.user_name || '',
-            request: data.request || '',
+            user_name: payload.user_name || '',
+            request: payload.request || '',
           },
         );
         this.mail_data.greet = this.stringService.formatMessage(
           `email.opinion-created.greet`,
-          { user_name: data.user_name || '' },
+          { user_name: payload.user_name || '' },
         );
         this.mail_data.button = {
-          url: data.url || '#',
+          url: payload.url || '#',
           label: this.stringService.formatMessage(
             `email.opinion-created.button`,
           ),
         };
-        await this.sendNow(data.email);
+        await this.sendNow(payload.email);
         break;
-      case 'payment-status-changed':
+      }
+      case 'payment-status-changed': {
+        const payload = data as PaymentStatusChangedPayload;
         // email to the user who paid
         this.mail_data.subject = this.stringService.formatMessage(
           `email.payment-status-changed.subject`,
-          { orderId: data.orderId },
+          { orderId: payload.orderId },
         );
         this.mail_data.body = this.stringService.formatMessage(
           `email.payment-status-changed.body`,
           {
-            user_name: data.name,
-            amount: data.amount,
-            orderId: data.orderId,
-            paymentId: data.paymentId,
-            paidAt: data.paidAt,
+            user_name: payload.name,
+            amount: payload.amount,
+            orderId: payload.orderId,
+            paymentId: payload.paymentId,
+            paidAt: payload.paidAt,
           },
         );
         this.mail_data.greet = this.stringService.formatMessage(
           `email.payment-status-changed.greet`,
-          { user_name: data.name },
+          { user_name: payload.name },
         );
-        this.mail_data.button = { url: data.url || '#', label: 'View Order' };
+        this.mail_data.button = { url: payload.url || '#', label: 'View Order' };
 
-        await this.sendNow(data.to);
+        await this.sendNow(payload.to);
         break;
-      case 'payment-admin-notification':
+      }
+      case 'payment-admin-notification': {
+        const payload = data as PaymentAdminNotificationPayload;
         this.mail_data.subject = this.stringService.formatMessage(
           `email.payment-admin-notification.subject`,
-          { orderId: data.orderId, amount: data.amount },
+          { orderId: payload.orderId, amount: payload.amount },
         );
         this.mail_data.body = this.stringService.formatMessage(
           `email.payment-admin-notification.body`,
           {
-            transactionId: data.transactionId,
-            amount: data.amount,
-            orderId: data.orderId,
-            paymentId: data.paymentId,
-            paidAt: data.paidAt,
-            user_name: data.user?.name,
-            user_email: data.user?.email,
-            user_phone: data.user?.phone,
+            transactionId: payload.transactionId,
+            amount: payload.amount,
+            orderId: payload.orderId,
+            paymentId: payload.paymentId,
+            paidAt: payload.paidAt,
+            user_name: payload.user?.name,
+            user_email: payload.user?.email,
+            user_phone: payload.user?.phone,
           },
         );
         this.mail_data.greet = this.stringService.formatMessage(
           `email.payment-admin-notification.greet`,
         );
         this.mail_data.button = {
-          url: data.url || '#',
+          url: payload.url || '#',
           label: 'View Transaction',
         };
-        await this.sendNow(data.email);
+        await this.sendNow(payload.email);
         break;
+      }
       default:
         if (this.isGenericPaymentPayload(data)) {
-          const key = data.type.replace('payment-', '');
+          const payload = data as GenericPaymentPayload;
+          const key = payload.type.replace('payment-', '');
           this.mail_data.subject = this.stringService.formatMessage(
             `email.payment-${key}.subject`,
           );
           this.mail_data.body = this.stringService.formatMessage(
             `email.payment-${key}.body`,
-            { user_name: data.name, amount: data.amount },
+            { user_name: payload.name, amount: payload.amount },
           );
           this.mail_data.greet = this.stringService.formatMessage(
             `email.payment-${key}.greet`,
-            { user_name: data.name },
+            { user_name: payload.name },
           );
-          this.mail_data.button = { url: data.url || '#', label: 'See Details' };
-          await this.sendNow(data.to);
+          this.mail_data.button = { url: payload.url || '#', label: 'See Details' };
+          await this.sendNow(payload.to);
         }
         break;
     }
