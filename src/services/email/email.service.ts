@@ -58,6 +58,7 @@ export class MailService {
     urgency?: string;
   }) {
     const project_name = data.specialty || data.urgency || '';
+    console.log('Queueing new application email to ', data.email);
     await this.queue.add(
       'send-email',
       {
@@ -77,6 +78,7 @@ export class MailService {
     request: string;
     url?: string;
   }) {
+    console.log('Queueing opinion created email to ', data.email);
     await this.queue.add(
       'send-email',
       {
@@ -98,6 +100,7 @@ export class MailService {
     paymentId: string;
     paidAt: string;
   }) {
+    console.log('Queueing payment success email to ', data.to);
     await this.queue.add(
       'send-email',
       {
@@ -119,12 +122,14 @@ export class MailService {
     orderId: string;
     paymentId: string;
     paidAt: string;
+    email: string;
     user: {
       name: string;
       email: string;
       phone: string;
     };
   }) {
+    console.log('Queueing payment admin notification email');
     await this.queue.add(
       'send-email',
       {
@@ -135,6 +140,7 @@ export class MailService {
         paidAt: data.paidAt,
         user: data.user,
         type: `payment-admin-notification`,
+        email: data.email,
       },
       { attempts: 3, removeOnComplete: true },
     );
@@ -199,6 +205,57 @@ export class MailService {
         };
         await this.sendNow(data.email);
         break;
+      case 'payment-status-changed':
+        // email to the user who paid
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.payment-status-changed.subject`,
+          { orderId: data.orderId },
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.payment-status-changed.body`,
+          {
+            user_name: data.name,
+            amount: data.amount,
+            orderId: data.orderId,
+            paymentId: data.paymentId,
+            paidAt: data.paidAt,
+          },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.payment-status-changed.greet`,
+          { user_name: data.name },
+        );
+        this.mail_data.button = { url: data.url || '#', label: 'View Order' };
+
+        await this.sendNow(data.to);
+        break;
+      case 'payment-admin-notification':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.payment-admin-notification.subject`,
+          { orderId: data.orderId, amount: data.amount },
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.payment-admin-notification.body`,
+          {
+            transactionId: data.transactionId,
+            amount: data.amount,
+            orderId: data.orderId,
+            paymentId: data.paymentId,
+            paidAt: data.paidAt,
+            user_name: data.user?.name,
+            user_email: data.user?.email,
+            user_phone: data.user?.phone,
+          },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.payment-admin-notification.greet`,
+        );
+        this.mail_data.button = {
+          url: data.url || '#',
+          label: 'View Transaction',
+        };
+        await this.sendNow(data.email);
+        break;
       default:
         if (type?.startsWith?.('payment-')) {
           const key = type.replace('payment-', '');
@@ -207,14 +264,14 @@ export class MailService {
           );
           this.mail_data.body = this.stringService.formatMessage(
             `email.payment-${key}.body`,
-            { user_name: data.user_name, amount: data.amount },
+            { user_name: data.name, amount: data.amount },
           );
           this.mail_data.greet = this.stringService.formatMessage(
             `email.payment-${key}.greet`,
-            { user_name: data.user_name },
+            { user_name: data.name },
           );
           this.mail_data.button = { url: data.url, label: 'See Details' };
-          await this.sendNow(data.email);
+          await this.sendNow(data.to);
         }
         break;
     }

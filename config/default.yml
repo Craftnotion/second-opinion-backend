@@ -52,8 +52,8 @@ time_format: 'hh:mm a'
 mail:
   host: sandbox.smtp.mailtrap.io
   port: 2525
-  user: 96c6e6f69bf6e8
-  password: f75888149eeac8
+  user: 60a1c5ea959a46
+  password: e05dc1966e76c4
   from: craftnotion@gmail.com
 
 # App branding for emails

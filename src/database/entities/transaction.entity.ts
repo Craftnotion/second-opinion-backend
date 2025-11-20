@@ -31,6 +31,9 @@ export class Transaction {
   @Column({ nullable: true })
   request_id: number;
 
+  @Column({ nullable: true })
+  user_id: number;
+
   @Index()
   @Column({ nullable: true })
   razorpay_payment_id: string;
@@ -47,7 +50,7 @@ export class Transaction {
 
   //Relations
   @ManyToOne(() => User, (User) => User.id)
-  @JoinColumn({ name: 'User_id' })
+  @JoinColumn({ name: 'user_id' })
   @Exclude()
   user: User;
 

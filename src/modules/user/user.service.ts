@@ -88,13 +88,6 @@ export class UserService {
       return { success: 0, message: 'common.request.failed' };
     }
 
-    await this.mailService.requestCreated({
-      email: 'craftnotion@gmail.com',
-      applicant_name: user.full_name ?? '',
-      specialty: savedRequest.specialty ?? '',
-      urgency: savedRequest.urgency ?? '',
-    });
-
     // Create transaction and Razorpay order
     if (savedRequest.cost && savedRequest.cost > 0) {
       try {
@@ -103,6 +96,14 @@ export class UserService {
           savedRequest.id.toString(),
           savedRequest.cost.toString(),
         );
+
+        if (orderData.transaction_id) {
+          const transaction = await this.transactionRepository.findOne({
+            where: { id: orderData.transaction_id },
+          });
+
+          console.log('Transaction created with ID:', transaction);
+        }
 
         return {
           success: 1,
@@ -225,12 +226,18 @@ export class UserService {
     // Try to find by numeric ID first, then by slug
     const numericId = parseInt(id, 10);
     if (!isNaN(numericId)) {
-      const user = await this.userRepository.findOne({ where: { id: numericId } });
+      const user = await this.userRepository.findOne({
+        where: { id: numericId },
+      });
       if (user) {
         return user;
       }
     }
     // Fallback to slug lookup
     return await this.userRepository.findOne({ where: { slug: id } });
+  }
+
+  async getReqById(id: number) {
+    return await this.requestsRepository.findOne({ where: { id: id } });
   }
 }
