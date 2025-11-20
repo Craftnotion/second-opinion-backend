@@ -1,0 +1,40 @@
+name: Craftnotion E2E
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on:
+      labels: [ e2 ]
+
+    strategy:
+      matrix:
+        node-version: [22.x]
+
+    steps:
+      - name: Git Initialize
+        working-directory: /var/www/html/backend/second_opinions
+        run: git checkout main && git pull origin main
+      - name: Remove Next
+        working-directory: /var/www/html/backend/second_opinions
+        run: rm -rf .next
+      - name: Install Dependencies and Build
+        working-directory: /var/www/html/backend/second_opinions
+        run: yarn && yarn build
+      - name: Kill Node Process
+        working-directory: /
+        run: sh -c 'pkill -9 node || true' ; echo $?
+      - name: Kill Next Process
+        working-directory: /
+        run: sh -c 'pkill -9 next || true' ; echo $?
+      - name: Kill Nest Process
+        working-directory: /
+        run: sh -c 'pkill -9 nest || true' ; echo $?
+      - name: Restart All Websites
+        working-directory: /var/www/html/frontend/craftnotion
+        run: RUNNER_TRACKING_ID="" && yarn run stop && yarn run start-websites
+      - name: Free Ram
+        working-directory: /
+        run: sudo sync; echo 3 > /proc/sys/vm/drop_caches && free -g

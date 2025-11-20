@@ -6,6 +6,11 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.development' });
 dotenv.config({ path: '.env' });
 
+// Resolve paths from project root (works in both CommonJS and ES modules)
+// This file is in src/config, so we go up one level to src, then to database
+const projectRoot = process.cwd();
+const srcPath = join(projectRoot, 'src');
+
 async function getDataSource(): Promise<DataSource> {
   const app = await NestFactory.createApplicationContext(
     ConfigModule.forRoot({
@@ -25,9 +30,9 @@ async function getDataSource(): Promise<DataSource> {
     synchronize: false,
     logging: false,
     entities: [
-      join(__dirname, '../', 'database', 'entities', '**', '*.entity.{ts,js}'),
+      join(srcPath, 'database', 'entities', '**', '*.entity.{ts,js}'),
     ],
-    migrations: [join(__dirname, '../', 'database', 'migrations/*.ts')]
+    migrations: [join(srcPath, 'database', 'migrations', '*.ts')]
   });
 }
 
