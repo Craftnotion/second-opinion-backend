@@ -10,7 +10,7 @@ export class MailQueueConsumer extends WorkerHost implements OnModuleInit {
     private EmailService: MailService,
   ) {
     super();
-    console.log('MailQueueConsumer: Constructor called, processor initialized');
+   
   }
 
   async onModuleInit() {
@@ -19,15 +19,9 @@ export class MailQueueConsumer extends WorkerHost implements OnModuleInit {
 
   async process(job: Job<any, any, string>): Promise<any> {
     try {
-      console.log('EmailQueueProcessor: Processing email job', {
-        jobId: job.id,
-        type: job.data.type,
-        data: job.data,
-      });
+    
       await this.EmailService.handleJob(job.data);
-      console.log('EmailQueueProcessor: Email job completed successfully', {
-        jobId: job.id,
-      });
+      
     } catch (error) {
       console.error('EmailQueueProcessor: Error processing email job', {
         jobId: job.id,

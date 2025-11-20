@@ -88,13 +88,6 @@ export class UserService {
       return { success: 0, message: 'common.request.failed' };
     }
 
-    await this.mailService.requestCreated({
-      email: 'craftnotion@gmail.com',
-      applicant_name: user.full_name ?? '',
-      specialty: savedRequest.specialty ?? '',
-      urgency: savedRequest.urgency ?? '',
-    });
-
     // Create transaction and Razorpay order
     if (savedRequest.cost && savedRequest.cost > 0) {
       try {
@@ -103,6 +96,12 @@ export class UserService {
           savedRequest.id.toString(),
           savedRequest.cost.toString(),
         );
+
+        if (orderData.transaction_id) {
+          const transaction = await this.transactionRepository.findOne({
+            where: { id: orderData.transaction_id },
+          });
+        }
 
         return {
           success: 1,
@@ -144,9 +143,9 @@ export class UserService {
       data = this.requestsRepository
         .createQueryBuilder('requests')
         .leftJoinAndSelect('requests.opinion', 'opinion.specialist_name')
-        .leftJoinAndSelect('requests.user', 'user');
-      // .leftJoin('requests.transactions', 'transactions')
-      // .where('transactions.status = :status', { status: 'completed' });
+        .leftJoinAndSelect('requests.user', 'user')
+        .leftJoin('requests.transaction', 'transaction')
+        .where('transaction.status = :status', { status: 'completed' });
     } else {
       data = this.requestsRepository
         .createQueryBuilder('requests')
@@ -164,6 +163,7 @@ export class UserService {
         status: paramsFilter.status,
       });
     }
+    data.orderBy('requests.created_at', 'DESC');
     const requests = await paginate(data, {
       page: paramsFilter.page ? Number(paramsFilter.page) : 1,
       limit: paramsFilter.limit ? Number(paramsFilter.limit) : 10,
@@ -225,12 +225,18 @@ export class UserService {
     // Try to find by numeric ID first, then by slug
     const numericId = parseInt(id, 10);
     if (!isNaN(numericId)) {
-      const user = await this.userRepository.findOne({ where: { id: numericId } });
+      const user = await this.userRepository.findOne({
+        where: { id: numericId },
+      });
       if (user) {
         return user;
       }
     }
     // Fallback to slug lookup
     return await this.userRepository.findOne({ where: { slug: id } });
+  }
+
+  async getReqById(id: number) {
+    return await this.requestsRepository.findOne({ where: { id: id } });
   }
 }

@@ -17,6 +17,7 @@ const Razorpay = require('razorpay');
 @Injectable()
 export class TransactionService {
   private razorpay: any;
+
   private readonly logger = new Logger(TransactionService.name);
   private razorpayConfig = {
     api_key_id: 'rzp_test_RgosfgTam2peAi',
@@ -51,13 +52,12 @@ export class TransactionService {
     }
 
     const transaction = this.TransactionRepository.create({
-     user: user,
+      user: user,
       amount: Number(amount),
       status: 'pending' as TransactionStatus,
       request_id: request.id,
     });
-    const savedTransaction =
-      await this.TransactionRepository.save(transaction);
+    const savedTransaction = await this.TransactionRepository.save(transaction);
 
     const options = {
       amount: Number(amount) * 100, // amount in the smallest currency unit
@@ -74,7 +74,7 @@ export class TransactionService {
 
     const order = await this.razorpay.orders.create(options);
     console.log('Razorpay Order:', order);
-    
+
     const transactionWithOrderId =
       await this.TransactionRepository.findOneOrFail({
         where: { id: savedTransaction.id },
@@ -95,6 +95,7 @@ export class TransactionService {
       attempts: order.attempts,
       created_at: order.created_at,
       key: this.razorpayConfig.api_key_id,
+      transaction_id: savedTransaction.id,
     };
   }
 
@@ -462,7 +463,11 @@ export class TransactionService {
     const transaction = await this.TransactionRepository.findOne({
       where: { razorpay_order_id },
     });
-
+    const user = await this.userService.getUserbyid(
+      transaction?.user_id?.toString() || '',
+    );
+    console.log('Verifying payment for transaction:', transaction);
+    console.log('With details:', user);
     if (!transaction) {
       return {
         success: 0,
@@ -507,8 +512,21 @@ export class TransactionService {
       transaction.amount = Math.round(razorpayPayment.amount / 100);
       await this.TransactionRepository.save(transaction);
 
-      await this.notifyPaymentSuccess(transaction, previousStatus);
+      const savedRequest = await this.userService.getReqById(
+        transaction.request_id,
+      );
+      if (!savedRequest) {
+        return { success: 0, message: 'common.request.not_found' };
+      }
 
+      const mail = config.get<{ [key: string]: string }>('email').admin_email;
+      await this.mailService.requestCreated({
+        email: mail ,
+        applicant_name: user?.full_name ?? '',
+        specialty: savedRequest.specialty ?? '',
+        urgency: savedRequest.urgency ?? '',
+      });
+      await this.notifyPaymentSuccess(transaction, previousStatus);
       return {
         success: 1,
         message: 'common.transaction.verified',
@@ -534,11 +552,18 @@ export class TransactionService {
       return;
     }
 
-    const user = await this.userService.getUserbyid(transaction.company_id);
+    console.log('Notifying payment success for transaction:', transaction);
+    console.log('Previous status:', previousStatus);
+    // NOTE: transaction entity has `user_id`, not `company_id`.
+    // Using `company_id` was returning undefined which led to an incorrect user lookup
+    // and mails being delivered to an unintended recipient (e.g. id 0). Use `user_id`.
+    const user = await this.userService.getUserbyid(
+      transaction.user_id?.toString() || '',
+    );
 
     if (!user?.email) {
       this.logger.warn(
-        `Payment success email skipped: company email missing for transaction ${transaction.id}`,
+        `Payment success email skipped: user email missing for transaction ${transaction.id} (user_id: ${transaction.user_id})`,
       );
       return;
     }
@@ -565,6 +590,7 @@ export class TransactionService {
         orderId: transaction.razorpay_order_id ?? '',
         paymentId: transaction.razorpay_payment_id ?? '',
         paidAt: transaction.updated_at,
+        email: config.get<{ [key: string]: string }>('email').admin_email,
         user: {
           name: user.full_name ?? 'User',
           email: user.email,

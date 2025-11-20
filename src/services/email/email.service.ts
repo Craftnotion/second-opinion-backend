@@ -32,15 +32,14 @@ export class MailService {
 
   private async sendNow(email: string) {
     try {
-      console.log('Attempting to send email to:', email);
-      console.log('Email subject:', this.mail_data.subject);
+
       const result = await this.mailerService.sendMail({
         to: email,
         subject: this.mail_data.subject,
         template: 'email/template',
         context: { data: this.mail_data },
       });
-      console.log('Email sent successfully to:', email, result);
+    
       return result;
     } catch (error) {
       console.error('Error in sending email to:', email, error);
@@ -56,21 +55,12 @@ export class MailService {
 
   async otpMail(data: { otp: string; identity: string }) {
     try {
-      console.log('MailService.otpMail: Adding job to queue', {
-        email: data.identity,
-        queueName: 'email',
-        jobName: 'send-email',
-      });
       const job = await this.queue.add(
         'send-email',
         { type: 'otp', ...data },
         { attempts: 3, removeOnComplete: true },
       );
-      console.log('MailService.otpMail: Job added successfully', {
-        jobId: job.id,
-        jobName: job.name,
-        email: data.identity,
-      });
+  
     } catch (error) {
       console.error('MailService.otpMail: Error adding job to queue', {
         error: error?.message,
@@ -107,6 +97,7 @@ export class MailService {
     request: string;
     url?: string;
   }) {
+
     await this.queue.add(
       'send-email',
       {
@@ -128,6 +119,7 @@ export class MailService {
     paymentId: string;
     paidAt: string;
   }) {
+
     await this.queue.add(
       'send-email',
       {
@@ -149,6 +141,7 @@ export class MailService {
     orderId: string;
     paymentId: string;
     paidAt: string;
+    email: string;
     user: {
       name: string;
       email: string;
@@ -165,6 +158,7 @@ export class MailService {
         paidAt: data.paidAt,
         user: data.user,
         type: `payment-admin-notification`,
+        email: data.email,
       },
       { attempts: 3, removeOnComplete: true },
     );
@@ -229,6 +223,57 @@ export class MailService {
         };
         await this.sendNow(data.email);
         break;
+      case 'payment-status-changed':
+        // email to the user who paid
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.payment-status-changed.subject`,
+          { orderId: data.orderId },
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.payment-status-changed.body`,
+          {
+            user_name: data.name,
+            amount: data.amount,
+            orderId: data.orderId,
+            paymentId: data.paymentId,
+            paidAt: data.paidAt,
+          },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.payment-status-changed.greet`,
+          { user_name: data.name },
+        );
+        this.mail_data.button = { url: data.url || '#', label: 'View Order' };
+
+        await this.sendNow(data.to);
+        break;
+      case 'payment-admin-notification':
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.payment-admin-notification.subject`,
+          { orderId: data.orderId, amount: data.amount },
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.payment-admin-notification.body`,
+          {
+            transactionId: data.transactionId,
+            amount: data.amount,
+            orderId: data.orderId,
+            paymentId: data.paymentId,
+            paidAt: data.paidAt,
+            user_name: data.user?.name,
+            user_email: data.user?.email,
+            user_phone: data.user?.phone,
+          },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.payment-admin-notification.greet`,
+        );
+        this.mail_data.button = {
+          url: data.url || '#',
+          label: 'View Transaction',
+        };
+        await this.sendNow(data.email);
+        break;
       default:
         if (type?.startsWith?.('payment-')) {
           const key = type.replace('payment-', '');
@@ -237,14 +282,14 @@ export class MailService {
           );
           this.mail_data.body = this.stringService.formatMessage(
             `email.payment-${key}.body`,
-            { user_name: data.user_name, amount: data.amount },
+            { user_name: data.name, amount: data.amount },
           );
           this.mail_data.greet = this.stringService.formatMessage(
             `email.payment-${key}.greet`,
-            { user_name: data.user_name },
+            { user_name: data.name },
           );
           this.mail_data.button = { url: data.url, label: 'See Details' };
-          await this.sendNow(data.email);
+          await this.sendNow(data.to);
         }
         break;
     }

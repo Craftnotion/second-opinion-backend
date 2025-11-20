@@ -24,5 +24,17 @@
     "subject": "Payment Failed",
     "body": "Hello {user_name}, your payment of ${amount} could not be processed. Please try again.",
     "greet": "Hello {user_name}"
+  },
+  "payment-status-changed": {
+    "subject": "Payment Status Updated for Order {orderId}",
+    "body": "Your payment of Rs.{amount} for Order {orderId} has been processed successfully.",
+    "greet": "Hello {user_name}",
+    "button": "View Order"
+  },
+  "payment-admin-notification": {
+    "subject": "New Payment Received — Order {orderId}",
+    "body": "A new payment has been received.\n\nTransaction ID: {transactionId}\nOrder ID: {orderId}\nPayment ID: {paymentId}\nAmount: ${amount}\nPaid At: {paidAt}\n\nUser: {user_name} ({user_email}, {user_phone})",
+    "greet": "Hello Admin",
+    "button": "View Transaction"
   }
 }
