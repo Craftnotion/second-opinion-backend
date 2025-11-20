@@ -2,10 +2,65 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StringService } from '../string/string.service';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 // template names are used (resolved by Mailer template.dir)
 import { mail_data } from 'src/types/types';
+
+type OtpMailPayload = { type: 'otp'; identity: string; otp: string };
+type NewApplicationPayload = {
+  type: 'new-application';
+  email: string;
+  applicant_name: string;
+  project_name: string;
+  user_name: string;
+  url?: string;
+};
+type OpinionCreatedPayload = {
+  type: 'opinion-created';
+  email: string;
+  user_name: string;
+  request: string;
+  url?: string;
+};
+type PaymentStatusChangedPayload = {
+  type: 'payment-status-changed';
+  to: string;
+  name: string;
+  amount: string;
+  orderId: string;
+  paymentId: string;
+  paidAt: string;
+  url?: string;
+};
+type PaymentAdminNotificationPayload = {
+  type: 'payment-admin-notification';
+  transactionId: string;
+  amount: string;
+  orderId: string;
+  paymentId: string;
+  paidAt: string;
+  email: string;
+  user: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  url?: string;
+};
+type GenericPaymentPayload = {
+  type: `payment-${string}`;
+  name: string;
+  amount: string;
+  to: string;
+  url?: string;
+};
+
+type MailJobPayload =
+  | OtpMailPayload
+  | NewApplicationPayload
+  | OpinionCreatedPayload
+  | PaymentStatusChangedPayload
+  | PaymentAdminNotificationPayload
+  | GenericPaymentPayload;
 
 @Injectable()
 export class MailService {
@@ -15,7 +70,6 @@ export class MailService {
     private readonly config: ConfigService,
     private readonly stringService: StringService,
     private readonly mailerService: MailerService,
-    @InjectQueue('email') private readonly queue: Queue,
   ) {
     this.mail_data = {
       subject: '',
@@ -52,28 +106,12 @@ export class MailService {
         code: error?.code,
         response: error?.response,
       });
-      throw error; // Re-throw so the queue can retry
+      throw error;
     }
   }
 
   async otpMail(data: { otp: string; identity: string }) {
-    try {
-      const job = await this.queue.add(
-        'send-email',
-        { type: 'otp', ...data },
-        { attempts: 3, removeOnComplete: true },
-      );
-
-      console.log('MailService.otpMail: queued otp job', { jobId: job?.id, email: data.identity });
-  
-    } catch (error) {
-      console.error('MailService.otpMail: Error adding job to queue', {
-        error: error?.message,
-        stack: error?.stack,
-        email: data.identity,
-      });
-      throw error;
-    }
+    await this.handleJob({ type: 'otp', ...data });
   }
 
   public async requestCreated(data: {
@@ -83,18 +121,13 @@ export class MailService {
     urgency?: string;
   }) {
     const project_name = data.specialty || data.urgency || '';
-    const job = await this.queue.add(
-      'send-email',
-      {
-        type: 'new-application',
-        email: data.email,
-        applicant_name: data.applicant_name,
-        project_name,
-        user_name: '',
-      },
-      { attempts: 3, removeOnComplete: true },
-    );
-    console.log('MailService.requestCreated: queued job', { jobId: job?.id, email: data.email });
+    await this.handleJob({
+      type: 'new-application',
+      email: data.email,
+      applicant_name: data.applicant_name,
+      project_name,
+      user_name: '',
+    });
   }
 
   public async opinionCreated(data: {
@@ -103,19 +136,13 @@ export class MailService {
     request: string;
     url?: string;
   }) {
-
-    const job = await this.queue.add(
-      'send-email',
-      {
-        type: 'opinion-created',
-        email: data.email,
-        user_name: data.user_name,
-        request: data.request,
-        url: data.url,
-      },
-      { attempts: 3, removeOnComplete: true },
-    );
-    console.log('MailService.opinionCreated: queued job', { jobId: job?.id, email: data.email });
+    await this.handleJob({
+      type: 'opinion-created',
+      email: data.email,
+      user_name: data.user_name,
+      request: data.request,
+      url: data.url,
+    });
   }
 
   async sendPaymentSuccessEmail(data: {
@@ -126,21 +153,15 @@ export class MailService {
     paymentId: string;
     paidAt: string;
   }) {
-
-    const job = await this.queue.add(
-      'send-email',
-      {
-        to: data.to,
-        name: data.name,
-        amount: data.amount,
-        orderId: data.orderId,
-        paymentId: data.paymentId,
-        paidAt: data.paidAt,
-        type: `payment-status-changed`,
-      },
-      { attempts: 3, removeOnComplete: true },
-    );
-    console.log('MailService.sendPaymentSuccessEmail: queued job', { jobId: job?.id, to: data.to });
+    await this.handleJob({
+      type: `payment-status-changed`,
+      to: data.to,
+      name: data.name,
+      amount: data.amount,
+      orderId: data.orderId,
+      paymentId: data.paymentId,
+      paidAt: data.paidAt,
+    });
   }
 
   async sendPaymentSuccessNotificationToAdmins(data: {
@@ -156,25 +177,31 @@ export class MailService {
       phone: string;
     };
   }) {
-    const job = await this.queue.add(
-      'send-email',
-      {
-        transactionId: data.transactionId,
-        amount: data.amount,
-        orderId: data.orderId,
-        paymentId: data.paymentId,
-        paidAt: data.paidAt,
-        user: data.user,
-        type: `payment-admin-notification`,
-        email: data.email,
-      },
-      { attempts: 3, removeOnComplete: true },
-    );
-    console.log('MailService.sendPaymentSuccessNotificationToAdmins: queued job', { jobId: job?.id, email: data.email });
+    await this.handleJob({
+      type: `payment-admin-notification`,
+      transactionId: data.transactionId,
+      amount: data.amount,
+      orderId: data.orderId,
+      paymentId: data.paymentId,
+      paidAt: data.paidAt,
+      email: data.email,
+      user: data.user,
+    });
   }
-  public async handleJob(data: any) {
-    const type: string = data.type;
-    console.log('MailService.handleJob: received job', { type, dataPreview: { ...(data.email ? {email: data.email} : {}), ...(data.identity ? {identity: data.identity} : {}), otp: data.otp ? true : undefined } });
+  public async handleJob(data: MailJobPayload) {
+    const { type } = data;
+    console.log('MailService.handleJob: received job', {
+      type,
+      dataPreview: {
+        ...(this.isGenericPaymentPayload(data) ? { to: data.to } : {}),
+        ...(type === 'otp'
+          ? { identity: (data as OtpMailPayload).identity, otp: true }
+          : {}),
+        ...(type === 'new-application' || type === 'opinion-created'
+          ? { email: (data as NewApplicationPayload | OpinionCreatedPayload).email }
+          : {}),
+      },
+    });
 
     switch (type) {
       case 'otp':
@@ -285,8 +312,8 @@ export class MailService {
         await this.sendNow(data.email);
         break;
       default:
-        if (type?.startsWith?.('payment-')) {
-          const key = type.replace('payment-', '');
+        if (this.isGenericPaymentPayload(data)) {
+          const key = data.type.replace('payment-', '');
           this.mail_data.subject = this.stringService.formatMessage(
             `email.payment-${key}.subject`,
           );
@@ -298,10 +325,14 @@ export class MailService {
             `email.payment-${key}.greet`,
             { user_name: data.name },
           );
-          this.mail_data.button = { url: data.url, label: 'See Details' };
+          this.mail_data.button = { url: data.url || '#', label: 'See Details' };
           await this.sendNow(data.to);
         }
         break;
     }
+  }
+
+  private isGenericPaymentPayload(payload: MailJobPayload): payload is GenericPaymentPayload {
+    return payload.type.startsWith('payment-') && 'to' in payload && 'name' in payload;
   }
 }

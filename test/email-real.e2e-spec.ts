@@ -6,7 +6,6 @@ import { join } from 'path';
 import { MailerConfig } from '../src/config/email.config';
 import { StringService } from '../src/services/string/string.service';
 import { MailService } from '../src/services/email/email.service';
-import { getQueueToken } from '@nestjs/bullmq';
 
 jest.setTimeout(60000);
 
@@ -33,12 +32,6 @@ describe('MailService real SMTP (e2e)', () => {
       providers: [
         StringService,
         MailService,
-        {
-          provide: getQueueToken('email'),
-          useValue: {
-            add: jest.fn(),
-          },
-        },
       ],
     }).compile();
 
