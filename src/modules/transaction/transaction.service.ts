@@ -519,8 +519,9 @@ export class TransactionService {
         return { success: 0, message: 'common.request.not_found' };
       }
 
+      const mail = config.get<{ [key: string]: string }>('email').admin_email;
       await this.mailService.requestCreated({
-        email: 'craftnotion@gmail.com',
+        email: mail ,
         applicant_name: user?.full_name ?? '',
         specialty: savedRequest.specialty ?? '',
         urgency: savedRequest.urgency ?? '',
@@ -584,7 +585,7 @@ export class TransactionService {
         orderId: transaction.razorpay_order_id ?? '',
         paymentId: transaction.razorpay_payment_id ?? '',
         paidAt: transaction.updated_at,
-        email: 'craftnotion@gmail.com',
+        email: config.get<{ [key: string]: string }>('email').admin_email,
         user: {
           name: user.full_name ?? 'User',
           email: user.email,

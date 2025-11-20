@@ -24,11 +24,10 @@
     "subject": "Payment Failed",
     "body": "Hello {user_name}, your payment of ${amount} could not be processed. Please try again.",
     "greet": "Hello {user_name}"
-  }
-  ,
+  },
   "payment-status-changed": {
     "subject": "Payment Status Updated for Order {orderId}",
-    "body": "Hello {user_name}, your payment of ${amount} for Order {orderId} (Payment ID: {paymentId}) was processed on {paidAt}.",
+    "body": "Your payment of Rs.{amount} for Order {orderId} has been processed successfully.",
     "greet": "Hello {user_name}",
     "button": "View Order"
   },
