@@ -145,9 +145,9 @@ export class UserService {
       data = this.requestsRepository
         .createQueryBuilder('requests')
         .leftJoinAndSelect('requests.opinion', 'opinion.specialist_name')
-        .leftJoinAndSelect('requests.user', 'user');
-      // .leftJoin('requests.transactions', 'transactions')
-      // .where('transactions.status = :status', { status: 'completed' });
+        .leftJoinAndSelect('requests.user', 'user')
+        .leftJoin('requests.transaction', 'transaction')
+        .where('transaction.status = :status', { status: 'completed' });
     } else {
       data = this.requestsRepository
         .createQueryBuilder('requests')
@@ -165,6 +165,7 @@ export class UserService {
         status: paramsFilter.status,
       });
     }
+    data.orderBy('requests.created_at', 'DESC');
     const requests = await paginate(data, {
       page: paramsFilter.page ? Number(paramsFilter.page) : 1,
       limit: paramsFilter.limit ? Number(paramsFilter.limit) : 10,
