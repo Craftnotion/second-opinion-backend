@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Module, OnModuleInit, Logger } from '@nestjs/common';
 
 import { MailerModule } from '@nestjs-modules/mailer';
 import { BullModule } from '@nestjs/bullmq';
@@ -20,8 +20,15 @@ import { MailQueueConsumer } from './email-queue.processor';
   providers: [MailQueueConsumer, MailService, StringService],
   exports: [MailQueueConsumer, MailService, StringService],
 })
-export class MailQueueModule {
-  constructor() {
-    console.log('MailQueueModule: Module initialized');
+export class MailQueueModule implements OnModuleInit {
+  private readonly logger = new Logger(MailQueueModule.name);
+
+  constructor(private readonly mailQueueConsumer: MailQueueConsumer) {
+    this.logger.log('MailQueueModule: Module initialized');
+  }
+
+  async onModuleInit() {
+    this.logger.log('MailQueueModule: onModuleInit - ensuring processor is ready');
+    this.logger.log('MailQueueModule: MailQueueConsumer instance:', !!this.mailQueueConsumer);
   }
 }
