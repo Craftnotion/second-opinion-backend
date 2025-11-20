@@ -32,6 +32,8 @@ export class MailService {
 
   private async sendNow(email: string) {
     try {
+      console.log(`MailService.sendNow: Sending email to ${email} - subject=${this.mail_data.subject}`);
+      console.log('MailService.sendNow: template=email/template, context keys=', Object.keys(this.mail_data));
 
       const result = await this.mailerService.sendMail({
         to: email,
@@ -39,7 +41,8 @@ export class MailService {
         template: 'email/template',
         context: { data: this.mail_data },
       });
-    
+
+      console.log('MailService.sendNow: sendMail result:', result);
       return result;
     } catch (error) {
       console.error('Error in sending email to:', email, error);
@@ -60,6 +63,8 @@ export class MailService {
         { type: 'otp', ...data },
         { attempts: 3, removeOnComplete: true },
       );
+
+      console.log('MailService.otpMail: queued otp job', { jobId: job?.id, email: data.identity });
   
     } catch (error) {
       console.error('MailService.otpMail: Error adding job to queue', {
@@ -78,7 +83,7 @@ export class MailService {
     urgency?: string;
   }) {
     const project_name = data.specialty || data.urgency || '';
-    await this.queue.add(
+    const job = await this.queue.add(
       'send-email',
       {
         type: 'new-application',
@@ -89,6 +94,7 @@ export class MailService {
       },
       { attempts: 3, removeOnComplete: true },
     );
+    console.log('MailService.requestCreated: queued job', { jobId: job?.id, email: data.email });
   }
 
   public async opinionCreated(data: {
@@ -98,7 +104,7 @@ export class MailService {
     url?: string;
   }) {
 
-    await this.queue.add(
+    const job = await this.queue.add(
       'send-email',
       {
         type: 'opinion-created',
@@ -109,6 +115,7 @@ export class MailService {
       },
       { attempts: 3, removeOnComplete: true },
     );
+    console.log('MailService.opinionCreated: queued job', { jobId: job?.id, email: data.email });
   }
 
   async sendPaymentSuccessEmail(data: {
@@ -120,7 +127,7 @@ export class MailService {
     paidAt: string;
   }) {
 
-    await this.queue.add(
+    const job = await this.queue.add(
       'send-email',
       {
         to: data.to,
@@ -133,6 +140,7 @@ export class MailService {
       },
       { attempts: 3, removeOnComplete: true },
     );
+    console.log('MailService.sendPaymentSuccessEmail: queued job', { jobId: job?.id, to: data.to });
   }
 
   async sendPaymentSuccessNotificationToAdmins(data: {
@@ -148,7 +156,7 @@ export class MailService {
       phone: string;
     };
   }) {
-    await this.queue.add(
+    const job = await this.queue.add(
       'send-email',
       {
         transactionId: data.transactionId,
@@ -162,9 +170,11 @@ export class MailService {
       },
       { attempts: 3, removeOnComplete: true },
     );
+    console.log('MailService.sendPaymentSuccessNotificationToAdmins: queued job', { jobId: job?.id, email: data.email });
   }
   public async handleJob(data: any) {
     const type: string = data.type;
+    console.log('MailService.handleJob: received job', { type, dataPreview: { ...(data.email ? {email: data.email} : {}), ...(data.identity ? {identity: data.identity} : {}), otp: data.otp ? true : undefined } });
 
     switch (type) {
       case 'otp':
