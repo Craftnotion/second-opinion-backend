@@ -23,7 +23,7 @@ export class MailService {
       greet: '',
       logo:
         this.config.get<string>('logo') ||
-        `https://seniorexperts.in/home/images/logo.png`,
+        `https://opinions.secondaid.in/fav/ms-icon-310x310.png`,
       app_name: 'Second Opinion',
       app_background: this.config.get<string>('background') || '',
       app_color: this.config.get<string>('color') || '',
