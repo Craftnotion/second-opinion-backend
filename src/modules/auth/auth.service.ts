@@ -27,7 +27,7 @@ export class AuthService {
     private readonly hashService: HashService,
     private readonly codeService: CodeService,
     private readonly mailService: MailService,
-  ) { }
+  ) {}
 
   async GenerateToken(data: any, time: string = '100d'): Promise<string> {
     // Ensure payload is a plain object. Convert class instances to plain objects
@@ -47,31 +47,31 @@ export class AuthService {
 
   async login(data: loginDto) {
     const { phone, otp, type } = data;
-    let user;
-    if (type === 'user') {
-      user = await this.userRepository.findOne({
-        where: { phone, role: 'user' },
-      });
-    } else if (type === 'admin') {
-      user = await this.userRepository.findOne({
-        where: { phone, role: 'admin' },
-      });
-      if (!user) {
-        return {
-          success: 0,
-          message: 'common.auth.login.not_admin',
-        };
+
+    let user = await this.userRepository.findOne({ where: { phone } });
+
+    if (type === 'admin') {
+      if (!user || user.role !== 'admin') {
+        return { success: 0, message: 'common.auth.login.not_admin' };
       }
     }
 
-    if (!user && type === 'user') {
-      const user = new User();
-      user.phone = phone;
-      user.role = 'user';
-      await this.userRepository.save(user);
+    if (type === 'user') {
+      if (user && user.role === 'admin') {
+        console.log('AuthService: Admin trying to login as user', { phone });
+        return { success: 0, message: 'common.auth.login.not_user' };
+      }
+
+      if (!user) {
+        user = this.userRepository.create();
+        user.phone = phone;
+        user.role = 'user';
+        user = await this.userRepository.save(user);
+      }
     }
+
     if (!otp) {
-      let code = await this.codeService.generateOTP(phone, 'phone');
+      const code = await this.codeService.generateOTP(phone, 'phone');
       try {
         await this.textQueue.add('send-sms', { phone, code });
       } catch (error) {
@@ -79,7 +79,6 @@ export class AuthService {
           phone,
           error: error instanceof Error ? error.message : String(error),
         });
-        // Continue anyway - OTP is still generated and returned
       }
       return {
         success: 2,
@@ -87,21 +86,22 @@ export class AuthService {
         data: code,
       };
     }
+
     const isCodeValid = await this.codeService.verifyOTP(phone, otp, 'phone');
     if (!isCodeValid) {
-      return {
-        success: 0,
-        message: 'common.auth.failed',
-      };
+      return { success: 0, message: 'common.auth.failed' };
     }
+
+    if (!user) {
+      user = await this.userRepository.findOne({ where: { phone } });
+      if (!user) return { success: 0, message: 'common.auth.failed' };
+    }
+
     const token = await this.GenerateToken(instanceToPlain(user), '7d');
     return {
       success: 1,
       message: 'common.auth.login.successful',
-      data: {
-        user: user,
-        token,
-      },
+      data: { user, token },
     };
   }
 
@@ -120,9 +120,12 @@ export class AuthService {
 
     // Check if email is being updated (different from current email)
     if (newEmail && newEmail !== currentEmail) {
-
       if (otp) {
-        const isValid = await this.codeService.verifyOTP(newEmail, otp, 'email');
+        const isValid = await this.codeService.verifyOTP(
+          newEmail,
+          otp,
+          'email',
+        );
         if (!isValid) {
           return {
             success: 0,
@@ -140,11 +143,10 @@ export class AuthService {
         };
       } else {
         try {
-          
           const code = await this.codeService.generateOTP(newEmail, 'email');
-          
+
           await this.mailService.otpMail({ otp: code, identity: newEmail });
-        
+
           return {
             success: 2,
             message: 'common.profile.verify_email_sent',
