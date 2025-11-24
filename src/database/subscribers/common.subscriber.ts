@@ -89,15 +89,66 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
 
     if (columns.includes('slug')) {
       const slugBase = this.getSlugBase(event.entity);
-      const newSlug = slugify(`${slugBase}-${event.entity.id}`, {
+      let baseSlug = slugify(`${slugBase}-${event.entity.id}`, {
         lower: true,
       });
 
-      await event.manager
-        .getRepository(event.metadata.target)
-        .update({ id: event.entity.id }, { slug: newSlug });
+      const repository = event.manager.getRepository(event.metadata.target);
+      let uniqueSlug = baseSlug;
+      let counter = 0;
+      const maxRetries = 50;
 
-      event.entity.slug = newSlug;
+      // Find a unique slug by checking existence and retrying on duplicate key errors
+      while (counter < maxRetries) {
+        try {
+          // Check if slug exists for another entity
+          const existing = await repository.findOne({
+            where: { slug: uniqueSlug } as any,
+          });
+
+          if (!existing || existing.id === event.entity.id) {
+            // Slug is available, try to update
+            try {
+              await repository.update({ id: event.entity.id }, { slug: uniqueSlug });
+              event.entity.slug = uniqueSlug;
+              break;
+            } catch (error: any) {
+              // Handle duplicate key error from concurrent inserts
+              if (
+                error?.code === 'ER_DUP_ENTRY' ||
+                error?.message?.includes('Duplicate entry')
+              ) {
+                counter++;
+                uniqueSlug = `${baseSlug}-${counter}`;
+                continue;
+              }
+              throw error;
+            }
+          } else {
+            // Slug exists for another entity, try next variation
+            counter++;
+            uniqueSlug = `${baseSlug}-${counter}`;
+          }
+        } catch (error: any) {
+          // If it's a duplicate key error, try next variation
+          if (
+            error?.code === 'ER_DUP_ENTRY' ||
+            error?.message?.includes('Duplicate entry')
+          ) {
+            counter++;
+            uniqueSlug = `${baseSlug}-${counter}`;
+            continue;
+          }
+          throw error;
+        }
+      }
+
+      // Final fallback if we exhausted all retries
+      if (counter >= maxRetries) {
+        uniqueSlug = `${baseSlug}-${Date.now()}`;
+        await repository.update({ id: event.entity.id }, { slug: uniqueSlug });
+        event.entity.slug = uniqueSlug;
+      }
     }
 
     if (columns.includes('avatar')) {
