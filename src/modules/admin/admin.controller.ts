@@ -31,13 +31,16 @@ import { filterDto } from '../utils/param-filter.dto';
 import { LoginRequest } from 'src/types/request';
 import { OpinionDto } from './dto/opinion.dto';
 import { requestDto } from '../user/dto/request.dto';
+import { JwtCheckInGuard } from 'src/guards/opinion-jwt-guard/opinion.guard';
+import { CheckInRequest, requestPayload } from 'src/types/types';
+import { Is } from 'src/guards/acl/acl.guard';
 
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get('requests')
-  @UseGuards(JwtGuard)
+  @UseGuards(JwtGuard,Is('admin'))
   @ApiBearerAuth('authorization')
   @ApiOperation({ summary: 'getting all requests' })
   @ApiQuery({ type: filterDto })
@@ -51,7 +54,7 @@ export class AdminController {
   @ApiOperation({ summary: 'creating an opinion for the request' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: OpinionDto })
-  @UseGuards(JwtGuard)
+  @UseGuards(JwtGuard,Is('admin'))
   @ApiBearerAuth('authorization')
   @UseInterceptors(
     FileFieldsInterceptor([
@@ -72,10 +75,56 @@ export class AdminController {
   }
 
   @Get('requests/:id')
-  @UseGuards(JwtGuard)
+  @UseGuards(JwtGuard,Is('admin'))
   @ApiBearerAuth('authorization')
   @ApiOperation({ summary: 'getting request by id' })
   async getRequestById(@Req() req: LoginRequest, @Param('id') id: string) {
     return await this.adminService.getRequestById(id, req);
+  }
+
+  @Post('generate-link/:slug')
+  // @UseGuards(JwtGuard)
+  @ApiBearerAuth('authorization')
+  @ApiOperation({ summary: 'generating link for request' })
+  async generateLink(@Param('slug') slug: string) {
+    return await this.adminService.linkGenerator(slug);
+  }
+
+  @Get('/opinion')
+  @UseGuards(JwtCheckInGuard)
+  @ApiBearerAuth('authorization')
+  @ApiOperation({ summary: 'getting opinion by token' })
+  async getOpinionByToken(@Req() req: CheckInRequest) {
+    console.log('Request payload in controller:', req.user);
+    return await this.adminService.getRequestByIdTemp(
+      req.user.request.requestSlug,
+      req.user.request.userId,
+    );
+  }
+
+  @Post('/opinion/submit')
+  @UseGuards(JwtCheckInGuard)
+  @ApiBearerAuth('authorization')
+  @ApiOperation({ summary: 'submitting opinion by token' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'audioFile', maxCount: 1 },
+      { name: 'documents', maxCount: 10 },
+    ]),
+  )
+  async submitOpinionByToken(
+    @Req() req: CheckInRequest,
+    @Body() opinionDto: OpinionDto,
+    @UploadedFiles()
+    files: {
+      audioFile: Express.Multer.File[];
+      documents: Express.Multer.File[];
+    },
+  ) {
+    console.log('Submitting opinion for request:', req.user.request);
+
+    
+    return await this.adminService.opinion(opinionDto, files);
   }
 }

@@ -23,7 +23,7 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Requests)
-    private readonly requestsRepository: Repository<Requests>,
+    public readonly requestsRepository: Repository<Requests>,
     @InjectRepository(Document)
     private readonly documentRepository: Repository<Document>,
     private readonly authService: AuthService,
@@ -238,5 +238,39 @@ export class UserService {
 
   async getReqById(id: number) {
     return await this.requestsRepository.findOne({ where: { id: id } });
+  }
+
+  async generateLinks(slug: string) {
+    const admin = await this.userRepository.findOne({
+      where: { role: 'admin' },
+    });
+    const token = await this.authService.GenerateToken(
+      {
+        request: {
+          requestSlug: slug,
+          userId: admin?.id || 0,
+        },
+      },
+      '24h',
+    );
+    const team_url = `http://192.168.0.11:3000/report/${token}`;
+    return { success: 1, message: 'Link generated', data: team_url };
+  }
+
+  async getRequestDetailsTemp(requestSlug: string, userId: string) {
+    console.log(
+      'Fetching request details for slug:',
+      requestSlug,
+      'and userId:',
+      userId,
+    );
+    const request = await this.requestsRepository.findOne({
+      where: { slug: requestSlug },
+      relations: ['documents', 'opinion', 'opinion.opinionDocuments', 'user'],
+    });
+    if (!request) {
+      return { success: 0, message: 'common.request.not_found' };
+    }
+    return { success: 1, message: 'common.request.found', data: request };
   }
 }

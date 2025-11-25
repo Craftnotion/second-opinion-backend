@@ -72,6 +72,7 @@ export class AuthService {
 
     if (!otp) {
       const code = await this.codeService.generateOTP(phone, 'phone');
+      console.log('AuthService: Generated OTP for login', { phone, code });
       try {
         await this.textQueue.add('send-sms', { phone, code });
       } catch (error) {
@@ -100,7 +101,7 @@ export class AuthService {
     const token = await this.GenerateToken(instanceToPlain(user), '7d');
     return {
       success: 1,
-      message: 'common.auth.login.successful',
+      message: `common.auth.login.${type}`,
       data: { user, token },
     };
   }

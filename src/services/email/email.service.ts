@@ -6,6 +6,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 // template names are used (resolved by Mailer template.dir)
 import { mail_data } from 'src/types/types';
+import { request } from 'http';
 
 @Injectable()
 export class MailService {
@@ -32,14 +33,13 @@ export class MailService {
 
   private async sendNow(email: string) {
     try {
-
       const result = await this.mailerService.sendMail({
         to: email,
         subject: this.mail_data.subject,
         template: 'email/template',
         context: { data: this.mail_data },
       });
-    
+
       return result;
     } catch (error) {
       console.error('Error in sending email to:', email, error);
@@ -54,13 +54,18 @@ export class MailService {
   }
 
   async otpMail(data: { otp: string; identity: string }) {
+    console.log('MailService: Queuing OTP email to', data.identity);
     try {
       const job = await this.queue.add(
         'send-email',
         { type: 'otp', ...data },
         { attempts: 3, removeOnComplete: true },
       );
-  
+      console.log('MailService.otpMail: Job added to queue', {
+        jobId: job.id,
+        email: data.identity,
+      });
+      return job;
     } catch (error) {
       console.error('MailService.otpMail: Error adding job to queue', {
         error: error?.message,
@@ -97,7 +102,6 @@ export class MailService {
     request: string;
     url?: string;
   }) {
-
     await this.queue.add(
       'send-email',
       {
@@ -119,7 +123,6 @@ export class MailService {
     paymentId: string;
     paidAt: string;
   }) {
-
     await this.queue.add(
       'send-email',
       {
@@ -142,6 +145,9 @@ export class MailService {
     paymentId: string;
     paidAt: string;
     email: string;
+    request: string;
+    urgency: string;
+    specialty: string;
     user: {
       name: string;
       email: string;
@@ -157,6 +163,9 @@ export class MailService {
         paymentId: data.paymentId,
         paidAt: data.paidAt,
         user: data.user,
+        request: data.request,
+        urgency: data.urgency,
+        specialty: data.specialty,
         type: `payment-admin-notification`,
         email: data.email,
       },
@@ -263,6 +272,9 @@ export class MailService {
             user_name: data.user?.name,
             user_email: data.user?.email,
             user_phone: data.user?.phone,
+            request: data.request,
+            urgency: data.urgency,
+            specialty: data.specialty,
           },
         );
         this.mail_data.greet = this.stringService.formatMessage(

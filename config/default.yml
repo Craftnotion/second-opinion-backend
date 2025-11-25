@@ -8,7 +8,7 @@ frontend:
   base_url: https://opinions.secondaid.in
 
 app:
-  local: https://opinions-api.secondaid.in
+  local: http://192.168.0.13:3023
 
 organisation:
   has_organisation: true
@@ -67,3 +67,6 @@ logo: https://seniorexperts.in/home/images/logo.png
 
 email:
   admin_email: craftnotion@gmail.com
+
+config:
+  url: http://192.168.0.13:3023

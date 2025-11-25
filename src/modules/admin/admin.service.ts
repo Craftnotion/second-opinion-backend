@@ -82,4 +82,12 @@ export class AdminService {
   async getRequestById(id: string, req: LoginRequest) {
     return await this.userService.getRequestDetails(id, req);
   }
+
+  async linkGenerator(slug: string) {
+    return await this.userService.generateLinks(slug);
+  }
+
+  async getRequestByIdTemp(requestSlug: string, userId: string) {
+    return await this.userService.getRequestDetailsTemp(requestSlug, userId);
+  }
 }
