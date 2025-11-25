@@ -13,7 +13,7 @@ import { UniqueIdGenerator } from 'src/services/uid-generator/uid-generator.serv
 import { MailService } from 'src/services/email/email.service';
 import { TransactionService } from '../transaction/transaction.service';
 import { Transaction } from 'src/database/entities/transaction.entity';
-import { TransactionStatus } from 'src/types/types';
+import * as config from 'config';
 
 @Injectable()
 export class UserService {
@@ -241,6 +241,7 @@ export class UserService {
   }
 
   async generateLinks(slug: string) {
+    const dbConfig = config.get<{ [key: string]: string }>('opinion');
     const admin = await this.userRepository.findOne({
       where: { role: 'admin' },
     });
@@ -253,17 +254,11 @@ export class UserService {
       },
       '24h',
     );
-    const team_url = `http://192.168.0.11:3000/report/${token}`;
+    const team_url = `${dbConfig.frontendlink}/${token}`;
     return { success: 1, message: 'Link generated', data: team_url };
   }
 
   async getRequestDetailsTemp(requestSlug: string, userId: string) {
-    console.log(
-      'Fetching request details for slug:',
-      requestSlug,
-      'and userId:',
-      userId,
-    );
     const request = await this.requestsRepository.findOne({
       where: { slug: requestSlug },
       relations: ['documents', 'opinion', 'opinion.opinionDocuments', 'user'],

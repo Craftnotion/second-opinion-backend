@@ -39,6 +39,9 @@ type PaymentAdminNotificationPayload = {
   paymentId: string;
   paidAt: string;
   email: string;
+  request: string;
+  urgency: string;
+  specialty: string;
   user: {
     name: string;
     email: string;
@@ -86,17 +89,12 @@ export class MailService {
 
   private async sendNow(email: string) {
     try {
-      console.log(`MailService.sendNow: Sending email to ${email} - subject=${this.mail_data.subject}`);
-      console.log('MailService.sendNow: template=email/template, context keys=', Object.keys(this.mail_data));
-
       const result = await this.mailerService.sendMail({
         to: email,
         subject: this.mail_data.subject,
         template: 'email/template',
         context: { data: this.mail_data },
       });
-
-      console.log('MailService.sendNow: sendMail result:', result);
       return result;
     } catch (error) {
       console.error('Error in sending email to:', email, error);
@@ -189,12 +187,15 @@ export class MailService {
       paidAt: data.paidAt,
       email: data.email,
       user: data.user,
+      request: data.request,
+      urgency: data.urgency,
+      specialty: data.specialty,
     });
   }
   public async handleJob(data: MailJobPayload) {
     const { type } = data;
     const dataPreview: Record<string, unknown> = {};
-    
+
     if (type === 'otp') {
       const payload = data as OtpMailPayload;
       dataPreview.identity = payload.identity;
@@ -211,11 +212,6 @@ export class MailService {
       const payload = data as PaymentAdminNotificationPayload;
       dataPreview.email = payload.email;
     }
-    
-    console.log('MailService.handleJob: received job', {
-      type,
-      dataPreview,
-    });
 
     switch (type) {
       case 'otp': {
@@ -249,7 +245,10 @@ export class MailService {
           `email.new-application.greet`,
           { user_name: payload.user_name || '' },
         );
-        this.mail_data.button = { url: payload.url || '#', label: 'See Details' };
+        this.mail_data.button = {
+          url: payload.url || '#',
+          label: 'See Details',
+        };
 
         await this.sendNow(payload.email);
         break;
@@ -301,7 +300,10 @@ export class MailService {
           `email.payment-status-changed.greet`,
           { user_name: payload.name },
         );
-        this.mail_data.button = { url: payload.url || '#', label: 'View Order' };
+        this.mail_data.button = {
+          url: payload.url || '#',
+          label: 'View Order',
+        };
 
         await this.sendNow(payload.to);
         break;
@@ -323,9 +325,9 @@ export class MailService {
             user_name: payload.user?.name,
             user_email: payload.user?.email,
             user_phone: payload.user?.phone,
-            request: data.request,
-            urgency: data.urgency,
-            specialty: data.specialty,
+            request: payload?.request,
+            urgency: payload.urgency,
+            specialty: payload.specialty,
           },
         );
         this.mail_data.greet = this.stringService.formatMessage(
@@ -353,14 +355,23 @@ export class MailService {
             `email.payment-${key}.greet`,
             { user_name: payload.name },
           );
-          this.mail_data.button = { url: payload.url || '#', label: 'See Details' };
+          this.mail_data.button = {
+            url: payload.url || '#',
+            label: 'See Details',
+          };
           await this.sendNow(payload.to);
         }
         break;
     }
   }
 
-  private isGenericPaymentPayload(payload: MailJobPayload): payload is GenericPaymentPayload {
-    return payload.type.startsWith('payment-') && 'to' in payload && 'name' in payload;
+  private isGenericPaymentPayload(
+    payload: MailJobPayload,
+  ): payload is GenericPaymentPayload {
+    return (
+      payload.type.startsWith('payment-') &&
+      'to' in payload &&
+      'name' in payload
+    );
   }
 }

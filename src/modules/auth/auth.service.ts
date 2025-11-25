@@ -58,7 +58,6 @@ export class AuthService {
 
     if (type === 'user') {
       if (user && user.role === 'admin') {
-        console.log('AuthService: Admin trying to login as user', { phone });
         return { success: 0, message: 'common.auth.login.not_user' };
       }
 
@@ -72,7 +71,6 @@ export class AuthService {
 
     if (!otp) {
       const code = await this.codeService.generateOTP(phone, 'phone');
-      console.log('AuthService: Generated OTP for login', { phone, code });
       try {
         await this.textQueue.add('send-sms', { phone, code });
       } catch (error) {

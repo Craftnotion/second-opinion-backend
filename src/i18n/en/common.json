@@ -5,6 +5,7 @@
       "successful": "User has Logged in successful",
       "admin": "Admin has Logged in successful",
       "user": "User has Logged in successful",
+      "not_user": "You are not authorized to access user panel",
       "not_admin": "You are not authorized to access admin panel"
     },
     "failed": "Authentication failed"
