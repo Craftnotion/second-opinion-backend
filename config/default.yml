@@ -8,7 +8,7 @@ frontend:
   base_url: https://www.2ndopinionsupport.com
 
 app:
-  local: http://192.168.0.13:3023
+  local: https://api.2ndopinionsupport.com
 
 organisation:
   has_organisation: true
@@ -61,15 +61,12 @@ name: Second Opinion
 background: "#f8f9fa"
 color: "#007bff"
 
-frontend_url: http://localhost:3000
+frontend_url: https://2ndopinionsupport.com
 
-logo: https://seniorexperts.in/home/images/logo.png
+logo: https://2ndopinionsupport.com/icons/logo.svg
 
 email:
-  admin_email: sannubca23@gmail.com
+  admin_email: secondaidhealthcaresystem@gmail.com
 
 config:
-  url: http://192.168.0.13:3023
-
-opinion:
-  frontendlink: http://192.168.0.11:3001/report
+  url: https://api.2ndopinionsupport.com
