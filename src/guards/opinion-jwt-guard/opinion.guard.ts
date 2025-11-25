@@ -26,7 +26,6 @@ export class JwtCheckInGuard implements CanActivate {
       });
 
       request['user'] = payload as requestPayload;
-      console.log('Check-in JWT payload:', request['user']);
     } catch (err) {
       throw new UnauthorizedException({
         success: 5,

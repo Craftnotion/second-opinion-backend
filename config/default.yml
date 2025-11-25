@@ -66,7 +66,10 @@ frontend_url: http://localhost:3000
 logo: https://seniorexperts.in/home/images/logo.png
 
 email:
-  admin_email: craftnotion@gmail.com
+  admin_email: sannubca23@gmail.com
 
 config:
   url: http://192.168.0.13:3023
+
+opinion:
+  frontendlink: http://192.168.0.11:3001/report

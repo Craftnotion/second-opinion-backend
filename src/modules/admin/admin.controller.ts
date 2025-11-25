@@ -95,7 +95,6 @@ export class AdminController {
   @ApiBearerAuth('authorization')
   @ApiOperation({ summary: 'getting opinion by token' })
   async getOpinionByToken(@Req() req: CheckInRequest) {
-    console.log('Request payload in controller:', req.user);
     return await this.adminService.getRequestByIdTemp(
       req.user.request.requestSlug,
       req.user.request.userId,
@@ -122,9 +121,6 @@ export class AdminController {
       documents: Express.Multer.File[];
     },
   ) {
-    console.log('Submitting opinion for request:', req.user.request);
-
-    
     return await this.adminService.opinion(opinionDto, files);
   }
 }

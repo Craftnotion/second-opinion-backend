@@ -545,9 +545,6 @@ export class TransactionService {
       );
       return;
     }
-
-    console.log('Notifying payment success for transaction:', transaction);
-    console.log('Previous status:', previousStatus);
     // NOTE: transaction entity has `user_id`, not `company_id`.
     // Using `company_id` was returning undefined which led to an incorrect user lookup
     // and mails being delivered to an unintended recipient (e.g. id 0). Use `user_id`.

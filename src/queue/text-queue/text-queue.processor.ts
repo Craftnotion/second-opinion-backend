@@ -26,10 +26,6 @@ export class TextQueueProcessor extends WorkerHost {
     try {
       const res = await fetch(url);
       const responseText = await res.text();
-      console.log('TextQueueProcessor: msg91 response', {
-        phone,
-        responseText,
-      });
 
       // msg91 returns different response codes
       // Success responses typically contain "SMS sent successfully" or a request ID
