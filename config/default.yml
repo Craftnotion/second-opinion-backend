@@ -70,3 +70,6 @@ email:
 
 config:
   url: https://api.2ndopinionsupport.com
+
+opinion:
+  frontendlink: https://www.2ndopinionsupport.com/report
