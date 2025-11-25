@@ -5,10 +5,10 @@ jwt:
 node_env: development
 
 frontend:
-  base_url: https://opinions.secondaid.in
+  base_url: https://www.2ndopinionsupport.com
 
 app:
-  local: https://opinions-api.secondaid.in
+  local: https://api.2ndopinionsupport.com
 
 organisation:
   has_organisation: true
