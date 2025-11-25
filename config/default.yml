@@ -8,7 +8,7 @@ frontend:
   base_url: https://www.2ndopinionsupport.com
 
 app:
-  local: https://api.2ndopinionsupport.com
+  local: http://192.168.0.13:3023
 
 organisation:
   has_organisation: true
@@ -66,4 +66,7 @@ frontend_url: http://localhost:3000
 logo: https://seniorexperts.in/home/images/logo.png
 
 email:
-  admin_email: secondaidhealthcaresystem@gmail.com
+  admin_email: craftnotion@gmail.com
+
+config:
+  url: http://192.168.0.13:3023

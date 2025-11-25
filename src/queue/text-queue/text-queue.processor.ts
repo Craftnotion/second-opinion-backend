@@ -24,10 +24,12 @@ export class TextQueueProcessor extends WorkerHost {
     const url = `https://api.msg91.com/api/sendhttp.php?mobiles=${encodeURIComponent(mobileNo)}&authkey=${authKey}&route=4&sender=SECAID&message=${encodeURIComponent(smsContent)}&DLT_TE_ID=1307162799550106094`;
 
     try {
-
       const res = await fetch(url);
       const responseText = await res.text();
-
+      console.log('TextQueueProcessor: msg91 response', {
+        phone,
+        responseText,
+      });
 
       // msg91 returns different response codes
       // Success responses typically contain "SMS sent successfully" or a request ID

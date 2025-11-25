@@ -89,3 +89,12 @@ export interface mail_data {
   app_color: string;
   button?: object;
 }
+
+export interface requestPayload {
+  requestSlug: string;
+  userId: string;
+}
+
+export interface CheckInRequest extends Request {
+  user: WorkshopPayload;
+}

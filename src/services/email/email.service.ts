@@ -171,6 +171,9 @@ export class MailService {
     paymentId: string;
     paidAt: string;
     email: string;
+    request: string;
+    urgency: string;
+    specialty: string;
     user: {
       name: string;
       email: string;
@@ -320,6 +323,9 @@ export class MailService {
             user_name: payload.user?.name,
             user_email: payload.user?.email,
             user_phone: payload.user?.phone,
+            request: data.request,
+            urgency: data.urgency,
+            specialty: data.specialty,
           },
         );
         this.mail_data.greet = this.stringService.formatMessage(

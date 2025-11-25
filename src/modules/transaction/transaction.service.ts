@@ -520,12 +520,6 @@ export class TransactionService {
       }
 
       const mail = config.get<{ [key: string]: string }>('email').admin_email;
-      await this.mailService.requestCreated({
-        email: mail ,
-        applicant_name: user?.full_name ?? '',
-        specialty: savedRequest.specialty ?? '',
-        urgency: savedRequest.urgency ?? '',
-      });
       await this.notifyPaymentSuccess(transaction, previousStatus);
       return {
         success: 1,
@@ -561,6 +555,11 @@ export class TransactionService {
       transaction.user_id?.toString() || '',
     );
 
+    const request = await this.userService.requestsRepository
+      .createQueryBuilder('requests')
+      .leftJoinAndSelect('requests.user', 'user')
+      .where('requests.id = :id', { id: transaction.request_id })
+      .getOne();
     if (!user?.email) {
       this.logger.warn(
         `Payment success email skipped: user email missing for transaction ${transaction.id} (user_id: ${transaction.user_id})`,
@@ -591,6 +590,9 @@ export class TransactionService {
         paymentId: transaction.razorpay_payment_id ?? '',
         paidAt: transaction.updated_at,
         email: config.get<{ [key: string]: string }>('email').admin_email,
+        request:request?.request||'',
+        urgency:request?.urgency||'',
+        specialty:request?.specialty||'',
         user: {
           name: user.full_name ?? 'User',
           email: user.email,
