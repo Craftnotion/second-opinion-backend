@@ -184,7 +184,7 @@ export class MailService {
       amount: data.amount,
       orderId: data.orderId,
       paymentId: data.paymentId,
-      paidAt: data.paidAt,
+      paidAt: data.paidAt.toString().slice(0, 16),
       email: data.email,
       user: data.user,
       request: data.request,
