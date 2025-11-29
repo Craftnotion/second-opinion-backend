@@ -21,8 +21,8 @@ export class TransactionService {
 
   private readonly logger = new Logger(TransactionService.name);
   private razorpayConfig = {
-    api_key_id: 'rzp_test_RgosfgTam2peAi',
-    api_key_secret: '1ltxnLg1m7VA5nZxDIE4EzpA',
+    api_key_id: 'rzp_live_RlYwTHQonD7sTO',
+    api_key_secret: 'Rn3P14ehYf9zjbv53LbyRv7L',
     webhook_secret: 'NESTJSBACKEND@CTIVE!@#$%AUTHT',
     merchant_id: 'RB53YT2akk4wV2',
   };
