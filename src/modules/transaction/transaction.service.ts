@@ -7,6 +7,7 @@ import * as config from 'config';
 // import { AuthRequest } from '@/types/request';
 import * as crypto from 'crypto';
 import { Transaction } from 'src/database/entities/transaction.entity';
+import { User } from 'src/database/entities/user.entity';
 import { UserService } from '../user/user.service';
 import { HttpResponse, TransactionStatus } from 'src/types/types';
 import { TransactionDto } from './dto/transaction.dto';
@@ -28,6 +29,8 @@ export class TransactionService {
   constructor(
     @InjectRepository(Transaction)
     private readonly TransactionRepository: Repository<Transaction>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
     private readonly mailService: MailService,
@@ -84,6 +87,7 @@ export class TransactionService {
 
     return {
       id: order.id,
+      order_id: order.id, // Alias for consistency with frontend expectations
       merchant_id: this.razorpayConfig.merchant_id,
       entity: order.entity,
       amount: order.amount,
@@ -96,6 +100,7 @@ export class TransactionService {
       created_at: order.created_at,
       key: this.razorpayConfig.api_key_id,
       transaction_id: savedTransaction.id,
+      notes: options.notes, // Include notes for reference
     };
   }
 
@@ -120,304 +125,338 @@ export class TransactionService {
     }
   }
 
+  private async findTransactionForWebhook(
+    payment: any,
+    order: any,
+  ): Promise<Transaction | null> {
+    let transactionId =
+      payment?.notes?.transaction_id || order?.notes?.transaction_id;
+
+    // 1. Try by Razorpay Order ID
+    if (!transactionId && order?.id) {
+      const transaction = await this.TransactionRepository.findOne({
+        where: { razorpay_order_id: order.id },
+      });
+      if (transaction) return transaction;
+    }
+
+    // 2. Try by Transaction ID from notes
+    if (transactionId) {
+      const transaction = await this.TransactionRepository.findOne({
+        where: { id: parseInt(transactionId) },
+      });
+      if (transaction) return transaction;
+    }
+
+    // 3. Fallback: User + Amount
+    this.logger.log(
+      '[WEBHOOK] Transaction ID not found in notes/order. Attempting fallback lookup...',
+    );
+
+    const userEmail = payment?.email || payment?.notes?.user_email;
+    const userContact = payment?.contact || payment?.notes?.user_phone;
+
+    let user = null;
+    if (userEmail) {
+      user = await this.userRepository.findOne({
+        where: { email: userEmail },
+      });
+    }
+
+    if (!user && userContact) {
+      let phone = userContact;
+      if (phone.startsWith('+91')) phone = phone.substring(3);
+      else if (phone.startsWith('91') && phone.length === 12)
+        phone = phone.substring(2);
+      user = await this.userRepository.findOne({
+        where: { phone: phone },
+      });
+    }
+
+    if (user) {
+      const amountInRupees = (payment?.amount || order?.amount) / 100;
+      const pendingTransaction = await this.TransactionRepository.findOne({
+        where: {
+          user_id: user.id,
+          amount: amountInRupees,
+          status: 'pending',
+        },
+        order: { created_at: 'DESC' },
+      });
+      if (pendingTransaction) {
+        this.logger.log(
+          `[WEBHOOK] Found pending transaction ${pendingTransaction.id} via fallback lookup`,
+        );
+        return pendingTransaction;
+      }
+    }
+
+    return null;
+  }
+
+  private async capturePayment(
+    paymentId: string,
+    amount: number,
+    currency: string = 'INR',
+  ): Promise<boolean> {
+    try {
+      // 1. Check current status first
+      const payment = await this.razorpay.payments.fetch(paymentId);
+
+      if (payment.status === 'captured') {
+        this.logger.log(
+          `[WEBHOOK] Payment ${paymentId} is already captured.`,
+        );
+        return true;
+      }
+
+      if (payment.status !== 'authorized') {
+        this.logger.error(
+          `[WEBHOOK] Payment ${paymentId} is in ${payment.status} status. Cannot capture.`,
+        );
+        return false;
+      }
+
+      // 2. Attempt capture
+      try {
+        await this.razorpay.payments.capture(paymentId, amount, currency);
+        return true;
+      } catch (captureError: any) {
+        const errorDescription =
+          captureError.error?.description || captureError.message;
+
+        // Handle race conditions
+        if (
+          errorDescription ===
+            'Request failed because another payment operation is in progress' ||
+          errorDescription === 'Payment has already been captured'
+        ) {
+          this.logger.log(
+            `[WEBHOOK] Payment ${paymentId} capture race condition: ${errorDescription}. Verifying status...`,
+          );
+
+          // Verify status again
+          const freshPayment = await this.razorpay.payments.fetch(paymentId);
+          return freshPayment.status === 'captured';
+        }
+
+        this.logger.error(
+          `[WEBHOOK] Failed to capture payment ${paymentId}`,
+          captureError,
+        );
+        return false;
+      }
+    } catch (error) {
+      this.logger.error(
+        `[WEBHOOK] Error in capturePayment for ${paymentId}`,
+        error,
+      );
+      return false;
+    }
+  }
+
   async VerifyPaymentViaWebhook(Body: any, Header: string) {
     try {
-      const razorpayHeaders = Header;
-      const jsonBody = JSON.stringify(Body);
+      // Verify Razorpay signature
+      const razorpaySignature = Header;
+      const body = JSON.stringify(Body);
 
-      const event = Body?.event ?? 'unknown';
-      const paymentId = Body?.payload?.payment?.entity?.id;
-      this.logger.log(
-        `[WEBHOOK] Received event: ${event}${
-          paymentId ? ` for payment ${paymentId}` : ''
-        }`,
-      );
-      this.logger.debug(`[WEBHOOK] Headers: ${razorpayHeaders ?? 'undefined'}`);
-
-      const crypto = require('crypto');
       const expectedSignature = crypto
         .createHmac('sha256', this.razorpayConfig.webhook_secret)
-        .update(jsonBody)
+        .update(body)
         .digest('hex');
-      this.logger.debug(`[WEBHOOK] Expected Signature: ${expectedSignature}`);
-      this.logger.debug(
-        `[WEBHOOK] Razorpay Signature: ${razorpayHeaders ?? 'undefined'}`,
-      );
-      if (expectedSignature !== razorpayHeaders) {
-        this.logger.warn(
-          `[WEBHOOK] Invalid signature for event ${event}. Expected ${expectedSignature}, received ${razorpayHeaders}`,
-        );
-        return { success: 0, message: 'Invalid signature' };
+
+      if (razorpaySignature !== expectedSignature) {
+        this.logger.error('[WEBHOOK] Signature verification failed');
+        return { success: 0, message: 'common.transaction.failed' };
       }
 
-      const { payload } = Body;
-      if (
-        event == 'payment.captured' ||
-        event == 'payment.authorized' ||
-        event == 'order.paid'
-      ) {
-        const payment = payload?.payment.entity;
-        const paymentLink = payload?.payment_link?.entity;
-        const order = payload?.order?.entity;
-        if (!payment?.id) {
-          // Payment ID is missing so obviously something is wrong
-          return { success: 0, message: 'Payment ID not found in payload' };
+      const { event, payload } = Body;
+      this.logger.log(`[WEBHOOK] Received event: ${event}`);
+
+      if (event === 'payment.authorized') {
+        const payment = payload.payment.entity;
+
+        // Use helper to capture
+        const isCaptured = await this.capturePayment(
+          payment.id,
+          payment.amount,
+          payment.currency,
+        );
+
+        if (!isCaptured) {
+          return { success: 0, message: 'payment.not.captured' };
         }
 
-        //now we need to check is the transaction is already marked as paid or not
-        const existingTransaction = await this.TransactionRepository.findOne({
-          where: { razorpay_payment_id: payment.id },
-        });
+        const transaction = await this.findTransactionForWebhook(
+          payment,
+          payload.order?.entity,
+        );
 
-        if (existingTransaction) {
-          this.logger.warn(
-            `[WEBHOOK] Payment ${payment.id} already processed for transaction ${existingTransaction.id}`,
+        if (transaction) {
+          transaction.status = 'completed';
+          transaction.razorpay_payment_id = payment.id;
+          if (payment.order_id) transaction.razorpay_order_id = payment.order_id;
+
+          await this.TransactionRepository.save(transaction);
+          await this.notifyPaymentSuccess(transaction, transaction.status);
+          this.logger.log(
+            `[WEBHOOK] Transaction ${transaction.id} completed via payment.authorized`,
           );
-          return {
-            success: 1,
-            message: 'common.transaction.already.completed',
-          };
-        }
-
-        //now lets get our transaction id for our database from the notes which we sent while creating order
-        let transactionId =
-          payment.notes?.transaction_id ||
-          order.notes?.transaction_id ||
-          paymentLink.notes?.transaction_id;
-
-        if (!transactionId && order.id) {
-          //considering the case when notes are not present for some reason we will try to get the transaction via order id
-          const transaction = await this.TransactionRepository.findOne({
-            where: { razorpay_order_id: order.id },
-          });
-          if (transaction) {
-            transactionId = transaction.id.toString();
-          }
-        }
-        //NOT URE ABT THIS CASE
-        if (!transactionId && paymentLink?.id) {
-          const transaction = await this.TransactionRepository.findOne({
-            where: { razorpay_order_id: paymentLink.id },
-          });
-          if (transaction) {
-            transactionId = transaction.id.toString();
-          }
-        }
-
-        if (!transactionId) {
-          return {
-            success: 0,
-            message: 'Transaction ID not found in payment notes',
-          };
-        }
-        const Transaction = await this.TransactionRepository.findOne({
-          where: { id: parseInt(transactionId) },
-        });
-
-        if (!Transaction) {
-          return { success: 0, message: 'Transaction not found' };
-        }
-
-        if (Transaction.status === 'completed') {
-          return { success: 1, message: 'Transaction already completed' };
-        }
-
-        //now we need to update our transaction status to completed and save the razorpay payment id
-        //Basically verifying the payment is successful
-
-        try {
-          const razorpayPayments = await this.razorpay.payments.fetch(
+        } else {
+          this.logger.error(
+            '[WEBHOOK] Transaction not found for payment.authorized',
             payment.id,
           );
-          this.logger.debug(
-            `[WEBHOOK] Razorpay payment fetched: ${JSON.stringify(
-              razorpayPayments,
-            )}`,
-          );
-
-          if (
-            (razorpayPayments.status === 'captured' ||
-              razorpayPayments.status === 'authorized') &&
-            razorpayPayments.amount === Transaction.amount * 100
-          ) {
-            if (razorpayPayments.status === 'authorized') {
-              //capture the payment
-              try {
-                await this.razorpay.payments.capture(
-                  payment.id,
-                  razorpayPayments.amount,
-                );
-                const updatedPayment = await this.razorpay.payments.fetch(
-                  payment.id,
-                );
-                if (updatedPayment.status !== 'captured') {
-                  Transaction.status = 'failed';
-                  await this.TransactionRepository.save(Transaction);
-                  this.logger.error(
-                    `[WEBHOOK] Payment ${payment.id} capture failed. Status: ${updatedPayment.status}`,
-                  );
-                  return { success: 0, message: 'Payment capture failed' };
-                }
-              } catch (error) {
-                Transaction.status = 'failed';
-                await this.TransactionRepository.save(Transaction);
-                this.logger.error(
-                  `[WEBHOOK] Error capturing payment ${payment.id}: ${
-                    (error as Error)?.message ?? 'unknown error'
-                  }`,
-                );
-                return { success: 0, message: 'Payment capture failed' };
-              }
-            }
-
-            const previousStatus = Transaction.status;
-            Transaction.status = 'completed';
-            Transaction.razorpay_payment_id = payment.id;
-            if (order?.id) {
-              Transaction.razorpay_order_id = order.id;
-            } else if (paymentLink?.id) {
-              Transaction.razorpay_order_id = paymentLink.id;
-            }
-
-            await this.TransactionRepository.save(Transaction);
-
-            await this.notifyPaymentSuccess(Transaction, previousStatus);
-            this.logger.log(
-              `[WEBHOOK] Payment ${payment.id} verified for transaction ${Transaction.id}`,
-            );
-
-            return { success: 1, message: 'Payment verified and captured' };
-          } else {
-            Transaction.status = 'failed';
-            await this.TransactionRepository.save(Transaction);
-            return { success: 0, message: 'Payment verification failed' };
-          }
-        } catch (error) {
-          // If it's a "payment not found" error and transaction is already completed, just return success
-          if (
-            error.statusCode === 400 &&
-            error.error?.code === 'BAD_REQUEST_ERROR' &&
-            error.error?.description === 'The id provided does not exist' &&
-            Transaction.status === 'completed'
-          ) {
-            return {
-              success: 1,
-              message: 'common.transaction.already.completed',
-            };
-          }
-
-          // For other errors, mark as failed
-          Transaction.status = 'failed';
-          await this.TransactionRepository.save(Transaction);
-          this.logger.error(
-            `[WEBHOOK] Error verifying payment ${payment.id}: ${
-              (error as Error)?.message ?? 'unknown error'
-            }`,
-          );
-          return { success: 0, message: 'common.transaction.failed' };
         }
+
+        return { success: 1, message: 'common.transaction.captured' };
       }
 
-      //now lets handle the failed payments
-      if (event == 'payment.failed') {
-        const payment = payload?.payment?.entity;
-        const order = payload?.order?.entity;
-        const paymentLink = payload.payment_link?.entity;
+      if (event === 'order.paid') {
+        const order = payload.order.entity;
 
-        let transactionId =
-          payment?.notes?.transaction_id ||
-          order?.notes?.transaction_id ||
-          paymentLink?.notes?.transaction_id;
+        // Get payments for this order
+        const payments = await this.razorpay.orders.fetchPayments(order.id);
+        const payment = payments.items?.[0]; // Taking the first payment
 
-        // keep finding transaction id from order id if notes are not present
-        if (!transactionId && order?.id) {
-          const transaction = await this.TransactionRepository.findOne({
-            where: { razorpay_order_id: order.id },
-          });
-          if (transaction) {
-            transactionId = transaction.id.toString();
-          }
-        }
+        if (payment) {
+          // Use helper to capture (idempotent)
+          const isCaptured = await this.capturePayment(
+            payment.id,
+            payment.amount,
+            payment.currency,
+          );
 
-        if (!transactionId && paymentLink?.id) {
-          const transaction = await this.TransactionRepository.findOne({
-            where: { razorpay_order_id: paymentLink.id },
-          });
-          if (transaction) {
-            transactionId = transaction.id.toString();
-          }
-        }
+          if (isCaptured) {
+            const transaction = await this.findTransactionForWebhook(
+              payment,
+              order,
+            );
 
-        if (transactionId) {
-          const Transaction = await this.TransactionRepository.findOne({
-            where: { id: parseInt(transactionId) },
-          });
+            if (transaction) {
+              transaction.status = 'completed';
+              transaction.razorpay_payment_id = payment.id;
+              transaction.razorpay_order_id = order.id;
 
-          if (Transaction && Transaction.status !== 'completed') {
-            Transaction.status = 'failed';
-            Transaction.razorpay_payment_id = payment?.id;
-            if (order?.id) {
-              // ✅ Add this
-              Transaction.razorpay_order_id = order.id;
-            } else if (paymentLink?.id) {
-              Transaction.razorpay_order_id = paymentLink.id;
+              await this.TransactionRepository.save(transaction);
+              await this.notifyPaymentSuccess(transaction, transaction.status);
+              this.logger.log(
+                `[WEBHOOK] Transaction ${transaction.id} completed via order.paid`,
+              );
+            } else {
+              this.logger.error(
+                '[WEBHOOK] Transaction not found for order.paid',
+                order.id,
+              );
             }
-            await this.TransactionRepository.save(Transaction);
+          } else {
+            this.logger.log(
+              `[WEBHOOK] Payment ${payment.id} not captured in order.paid event. Skipping.`,
+            );
           }
+        }
+        return { success: 1, message: 'common.transaction.order_paid' };
+      }
+
+      if (event === 'payment.failed') {
+        const payment = payload.payment.entity;
+        const transaction = await this.findTransactionForWebhook(
+          payment,
+          payload.order?.entity,
+        );
+
+        if (transaction) {
+          transaction.status = 'failed';
+          transaction.razorpay_payment_id = payment.id;
+          if (payment.order_id) transaction.razorpay_order_id = payment.order_id;
+          await this.TransactionRepository.save(transaction);
+          this.logger.log(
+            `[WEBHOOK] Transaction ${transaction.id} marked failed`,
+          );
         }
         return { success: 1, message: 'common.transaction.failed' };
       }
+
+      // Handle payment.captured event (already captured payments)
+      if (event === 'payment.captured') {
+        const payment = payload.payment.entity;
+        const transaction = await this.findTransactionForWebhook(
+          payment,
+          payload.order?.entity,
+        );
+
+        if (transaction) {
+          // Check if already processed
+          if (transaction.status === 'completed') {
+            this.logger.log(
+              `[WEBHOOK] Transaction ${transaction.id} already completed`,
+            );
+            return { success: 1, message: 'common.transaction.already.completed' };
+          }
+
+          transaction.status = 'completed';
+          transaction.razorpay_payment_id = payment.id;
+          if (payment.order_id) transaction.razorpay_order_id = payment.order_id;
+
+          await this.TransactionRepository.save(transaction);
+          await this.notifyPaymentSuccess(transaction, transaction.status);
+          this.logger.log(
+            `[WEBHOOK] Transaction ${transaction.id} completed via payment.captured`,
+          );
+        } else {
+          this.logger.error(
+            '[WEBHOOK] Transaction not found for payment.captured',
+            payment.id,
+          );
+        }
+        return { success: 1, message: 'common.transaction.captured' };
+      }
+
+      // Handle dispute events
       if (
         event === 'payment.dispute.created' ||
         event === 'payment.dispute.under_review' ||
         event === 'payment.dispute.action_required'
       ) {
-        const order = payload.order.entity;
+        const order = payload.order?.entity;
+        if (order) {
+          const transaction = await this.TransactionRepository.findOne({
+            where: { razorpay_order_id: order.id },
+          });
 
-        // Extract transaction ID from receipt
-        let transactionId;
-        if (order.receipt.startsWith('receipt_order_')) {
-          transactionId = order.receipt.replace('TBTRANS', '');
-        } else {
-          transactionId = order.receipt.replace('receipt_order_', '');
+          if (transaction && transaction.status !== 'completed') {
+            transaction.status = 'failed';
+            await this.TransactionRepository.save(transaction);
+          }
         }
-
-        let Transaction = await this.TransactionRepository.findOne({
-          where: { id: parseInt(transactionId) },
-        });
-
-        if (Transaction) {
-          Transaction.status = 'failed';
-          await this.TransactionRepository.save(Transaction);
-        }
+        return { success: 1, message: 'common.transaction.dispute.created' };
       }
+
       // Handle dispute resolved events
       if (
         event === 'payment.dispute.won' ||
         event === 'payment.dispute.lost' ||
         event === 'payment.dispute.closed'
       ) {
-        const order = payload.order.entity;
+        const order = payload.order?.entity;
+        if (order) {
+          const transaction = await this.TransactionRepository.findOne({
+            where: { razorpay_order_id: order.id },
+          });
 
-        // Extract transaction ID from receipt
-        const transactionId = order.receipt.replace('TBTRANS', '');
-
-        const Transaction = await this.TransactionRepository.findOne({
-          where: { id: parseInt(transactionId) },
-        });
-
-        if (Transaction) {
-          if (event === 'payment.dispute.won') {
-            const previousStatus = Transaction.status;
-            Transaction.status = 'completed';
-            await this.TransactionRepository.save(Transaction);
-            await this.notifyPaymentSuccess(Transaction, previousStatus);
-          } else {
-            Transaction.status = 'failed';
-            await this.TransactionRepository.save(Transaction);
+          if (transaction) {
+            if (event === 'payment.dispute.won') {
+              const previousStatus = transaction.status;
+              transaction.status = 'completed';
+              await this.TransactionRepository.save(transaction);
+              await this.notifyPaymentSuccess(transaction, previousStatus);
+            } else {
+              transaction.status = 'failed';
+              await this.TransactionRepository.save(transaction);
+            }
           }
         }
-
         return { success: 1, message: 'common.transaction.dispute.resolved' };
       }
 
@@ -426,14 +465,13 @@ export class TransactionService {
         event === 'order.notification.delivered' ||
         event === 'order.notification.failed'
       ) {
-        // Log notification events but don't change transaction status
         return {
           success: 1,
           message: 'common.transaction.notification.logged',
         };
       }
 
-      // Handle downtime events (log but don't change transaction status)
+      // Handle downtime events
       if (
         event === 'payment.downtime.started' ||
         event === 'payment.downtime.updated' ||
@@ -442,15 +480,10 @@ export class TransactionService {
         return { success: 1, message: 'common.transaction.downtime.logged' };
       }
 
-      // For any unhandled events, return success to prevent Razorpay from retrying
-      return { success: 1, message: 'common.transaction.event.logged' };
-    } catch (error) {
-      this.logger.error(
-        `[WEBHOOK] Unexpected error in VerifyPaymentViaWebhook: ${
-          (error as Error)?.message ?? 'unknown error'
-        }`,
-      );
-      return { success: 0, message: 'Internal server error' };
+      return { success: 1, message: 'ignored' };
+    } catch (err) {
+      this.logger.error('[WEBHOOK] Error processing webhook', err);
+      return { success: 0, message: 'common.transaction.failed' };
     }
   }
 
@@ -460,14 +493,29 @@ export class TransactionService {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
       verifyPaymentDto;
 
+    // CRITICAL: Check if this payment ID was already processed to prevent duplicates
+    const existingTransaction = await this.TransactionRepository.findOne({
+      where: { razorpay_payment_id: razorpay_payment_id },
+    });
+
+    if (existingTransaction) {
+      this.logger.log(
+        `[VERIFY_PAYMENT] Payment ${razorpay_payment_id} already processed for transaction ${existingTransaction.id}`,
+      );
+      return {
+        success: 1,
+        message: 'common.transaction.already_verified',
+        data: existingTransaction,
+      };
+    }
+
     const transaction = await this.TransactionRepository.findOne({
       where: { razorpay_order_id },
     });
     const user = await this.userService.getUserbyid(
       transaction?.user_id?.toString() || '',
     );
-    console.log('Verifying payment for transaction:', transaction);
-    console.log('With details:', user);
+    this.logger.log('Verifying payment for transaction:', transaction?.id);
     if (!transaction) {
       return {
         success: 0,
@@ -489,6 +537,9 @@ export class TransactionService {
       .digest('hex');
 
     if (generatedSignature !== razorpay_signature) {
+      this.logger.warn(
+        `[VERIFY_PAYMENT] Invalid signature for order ${razorpay_order_id}`,
+      );
       return {
         success: 0,
         message: 'common.transaction.signature_invalid',
@@ -499,16 +550,34 @@ export class TransactionService {
       const razorpayPayment =
         await this.razorpay.payments.fetch(razorpay_payment_id);
 
+      // Use the capture helper for idempotent capture
       if (razorpayPayment.status === 'authorized') {
-        await this.razorpay.payments.capture(
+        const isCaptured = await this.capturePayment(
           razorpay_payment_id,
           razorpayPayment.amount,
+          razorpayPayment.currency,
         );
+        if (!isCaptured) {
+          transaction.status = 'failed';
+          await this.TransactionRepository.save(transaction);
+          return {
+            success: 0,
+            message: 'common.transaction.capture_failed',
+          };
+        }
+      } else if (razorpayPayment.status !== 'captured') {
+        transaction.status = 'failed';
+        await this.TransactionRepository.save(transaction);
+        return {
+          success: 0,
+          message: 'common.transaction.verification_failed',
+        };
       }
 
       const previousStatus = transaction.status;
       transaction.status = 'completed';
       transaction.razorpay_payment_id = razorpay_payment_id;
+      transaction.razorpay_order_id = razorpay_order_id; // Ensure order_id is set
       transaction.amount = Math.round(razorpayPayment.amount / 100);
       await this.TransactionRepository.save(transaction);
 
@@ -519,15 +588,22 @@ export class TransactionService {
         return { success: 0, message: 'common.request.not_found' };
       }
 
-      const mail = config.get<{ [key: string]: string }>('email').admin_email;
       await this.notifyPaymentSuccess(transaction, previousStatus);
+      this.logger.log(
+        `[VERIFY_PAYMENT] Transaction ${transaction.id} verified successfully`,
+      );
       return {
         success: 1,
         message: 'common.transaction.verified',
         data: transaction,
       };
     } catch (error) {
-      console.error('Error verifying Razorpay payment:', error);
+      this.logger.error(
+        `[VERIFY_PAYMENT] Error verifying Razorpay payment: ${razorpay_payment_id}`,
+        error,
+      );
+      transaction.status = 'failed';
+      await this.TransactionRepository.save(transaction);
       return {
         success: 0,
         message: 'common.transaction.verification_failed',

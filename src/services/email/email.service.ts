@@ -56,6 +56,14 @@ type GenericPaymentPayload = {
   to: string;
   url?: string;
 };
+type ContactFormPayload = {
+  type: 'contact-form';
+  to: string;
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+};
 
 type MailJobPayload =
   | OtpMailPayload
@@ -63,7 +71,8 @@ type MailJobPayload =
   | OpinionCreatedPayload
   | PaymentStatusChangedPayload
   | PaymentAdminNotificationPayload
-  | GenericPaymentPayload;
+  | GenericPaymentPayload
+  | ContactFormPayload;
 
 @Injectable()
 export class MailService {
@@ -192,6 +201,23 @@ export class MailService {
       specialty: data.specialty,
     });
   }
+
+  async sendContactFormEmail(data: {
+    to: string;
+    name: string;
+    email: string;
+    phone: string;
+    message: string;
+  }) {
+    await this.handleJob({
+      type: 'contact-form',
+      to: data.to,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      message: data.message,
+    });
+  }
   public async handleJob(data: MailJobPayload) {
     const { type } = data;
     const dataPreview: Record<string, unknown> = {};
@@ -211,6 +237,9 @@ export class MailService {
     } else if (type === 'payment-admin-notification') {
       const payload = data as PaymentAdminNotificationPayload;
       dataPreview.email = payload.email;
+    } else if (type === 'contact-form') {
+      const payload = data as ContactFormPayload;
+      dataPreview.to = payload.to;
     }
 
     switch (type) {
@@ -338,6 +367,25 @@ export class MailService {
           label: 'View Transaction',
         };
         await this.sendNow(payload.email);
+        break;
+      }
+      case 'contact-form': {
+        const payload = data as ContactFormPayload;
+        this.mail_data.subject = 'New Contact Form Submission - Second Opinion';
+        this.mail_data.body = `
+          <p>You have received a new contact form submission:</p>
+          <p><strong>Name:</strong> ${payload.name}</p>
+          <p><strong>Email:</strong> ${payload.email}</p>
+          <p><strong>Phone:</strong> ${payload.phone}</p>
+          <p><strong>Message:</strong></p>
+          <p>${payload.message}</p>
+        `;
+        this.mail_data.greet = 'Hello,';
+        this.mail_data.button = {
+          url: `mailto:${payload.email}`,
+          label: 'Reply to Contact',
+        };
+        await this.sendNow(payload.to);
         break;
       }
       default:
