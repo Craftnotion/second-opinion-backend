@@ -587,14 +587,15 @@ export class TransactionService {
         paymentId: transaction.razorpay_payment_id ?? '',
         paidAt: transaction.updated_at,
         email: config.get<{ [key: string]: string }>('email').admin_email,
-        request:request?.request||'',
-        urgency:request?.urgency||'',
-        specialty:request?.specialty||'',
+        request: request?.request || '',
+        urgency: request?.urgency || '',
+        specialty: request?.specialty || '',
         user: {
           name: user.full_name ?? 'User',
           email: user.email,
           phone: user.phone ?? '',
         },
+        url: config.get<{ [key: string]: string }>('frontend').base_url+`/admin/dashboard`
       });
     } catch (error) {
       this.logger.error(

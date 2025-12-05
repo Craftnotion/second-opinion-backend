@@ -177,6 +177,7 @@ export class MailService {
       email: string;
       phone: string;
     };
+    url: string;
   }) {
     await this.handleJob({
       type: `payment-admin-notification`,
@@ -190,6 +191,7 @@ export class MailService {
       request: data.request,
       urgency: data.urgency,
       specialty: data.specialty,
+      url: data.url,
     });
   }
   public async handleJob(data: MailJobPayload) {

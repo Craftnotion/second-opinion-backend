@@ -163,7 +163,7 @@ export class UserService {
         status: paramsFilter.status,
       });
     }
-    data.orderBy('requests.created_at', 'DESC');
+    data.orderBy('requests.id', 'DESC');
     const requests = await paginate(data, {
       page: paramsFilter.page ? Number(paramsFilter.page) : 1,
       limit: paramsFilter.limit ? Number(paramsFilter.limit) : 10,
@@ -241,7 +241,7 @@ export class UserService {
   }
 
   async generateLinks(slug: string) {
-    const dbConfig = config.get<{ [key: string]: string }>('opinion');
+    const dbConfig = config.get<{ [key: string]: string }>('frontend');
     const admin = await this.userRepository.findOne({
       where: { role: 'admin' },
     });
@@ -254,7 +254,7 @@ export class UserService {
       },
       '24h',
     );
-    const team_url = `${dbConfig.frontendlink}/${token}`;
+    const team_url = `${dbConfig.base_url}` + `/report/${token}`;
     return { success: 1, message: 'Link generated', data: team_url };
   }
 
