@@ -671,6 +671,7 @@ export class TransactionService {
           email: user.email,
           phone: user.phone ?? '',
         },
+        url: config.get<{ [key: string]: string }>('frontend').base_url+`/admin/dashboard`
       });
     } catch (error) {
       this.logger.error(
