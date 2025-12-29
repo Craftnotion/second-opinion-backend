@@ -88,4 +88,12 @@ export class UserController {
   async getRequestById(@Req() req: LoginRequest, @Param('id') id: string) {
     return await this.userService.getRequestDetails(id, req);
   }
+
+  @Get('is-free')
+  @UseGuards(JwtGuard)
+  @ApiBearerAuth('authorization')
+  @ApiOperation({ summary: 'checking if user is eligible for a free request' })
+  async isEligibleForFreeRequest(@Req() req: LoginRequest) {
+    return await this.userService.isFree(req);
+  }
 }

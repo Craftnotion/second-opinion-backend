@@ -273,4 +273,15 @@ export class UserService {
     }
     return { success: 1, message: 'common.request.found', data: request };
   }
+
+  async isFree(user:LoginRequest){
+    const pastTransaction =  await this.transactionRepository.findOne({
+      where: { user_id: user.user.id, status: 'completed' },
+    });
+    return {
+      success: 1,
+      message: 'common.user.free_status',
+      data: !pastTransaction,
+    }
+  }
 }
