@@ -73,12 +73,12 @@ export class AdminService {
       }
     }
     await this.userService.updateRequestStatus(request.slug);
-    await this.mailService.opinionCreated({
-      email: request.user.email ?? '',
-      user_name: request.user.full_name ?? 'User',
-      request: request.request ?? '',
-      url: `${dbConfig.frontend_url}/user/requests/${request.slug}`,
-    });
+    // await this.mailService.opinionCreated({
+    //   email: request.user.email ?? '',
+    //   user_name: request.user.full_name ?? 'User',
+    //   request: request.request ?? '',
+    //   url: `${dbConfig.frontend_url}/user/requests/${request.slug}`,
+    // });
 
     await this.textQueue.add('response-created', {
       phone: request.user.phone,
