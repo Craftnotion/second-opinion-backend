@@ -25,6 +25,7 @@ import { FileService } from './services/file/file.service';
 import { CommonSubscriber } from './database/subscribers/common.subscriber';
 import { UniqueIdGenerator } from './services/uid-generator/uid-generator.service';
 import { TransactionModule } from './modules/transaction/transaction.module';
+import { ContactModule } from './modules/contact/contact.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './response.interceptor';
@@ -72,6 +73,7 @@ import { ResponseInterceptor } from './response.interceptor';
     TextQueueModule,
     MailQueueModule,
     TransactionModule,
+    ContactModule,
   ],
 
   controllers: [AppController],

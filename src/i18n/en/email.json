@@ -31,10 +31,15 @@
     "greet": "Hello {user_name}",
     "button": "View Order"
   },
-  "payment-admin-notification": {
-    "subject": "New Payment Received — Order {orderId}",
-    "body": "A new payment has been received.\n\nTransaction ID: {transactionId}\nOrder ID: {orderId}\nPayment ID: {paymentId}\nAmount: {amount}\nPaid At: {paidAt}\n\nUser: {user_name} ({user_email}, {user_phone})\n\nRequest: {request}\nUrgency: {urgency}\nSpecialty: {specialty}",
+    "payment-admin-notification": {
+    "subject": "New Request Created",
     "greet": "Hello Admin",
+    "body": "<p>A new request has been submitted. Below are the details:</p>\n\n<h3 style=\"margin: 12px 0 6px;\">Payment Information</h3>\n<table style=\"width:100%; border-collapse:collapse; font-size:14px;\">\n<tr><td style=\"padding:4px 0;\"><strong>Payment ID:</strong> {paymentId}</td></tr>\n  <tr><td style=\"padding:4px 0;\"><strong>Amount:</strong> {amount}₹</td></tr>\n  <tr><td style=\"padding:4px 0;\"><strong>Paid At:</strong> {paidAt}</td></tr>\n</table>\n\n<h3 style=\"margin: 18px 0 6px;\">User Details</h3>\n<table style=\"width:100%; border-collapse:collapse; font-size:14px;\">\n  <tr><td style=\"padding:4px 0;\"><strong>Name:</strong> {user_name}</td></tr>\n  <tr><td style=\"padding:4px 0;\"><strong>Email:</strong> {user_email}</td></tr>\n  <tr><td style=\"padding:4px 0;\"><strong>Phone:</strong> {user_phone}</td></tr>\n</table>\n\n<h3 style=\"margin: 18px 0 6px;\">Request Details</h3>\n<table style=\"width:100%; border-collapse:collapse; font-size:14px;\">\n  <tr><td style=\"padding:4px 0;\"><strong>Request:</strong> {request}</td></tr>\n  <tr><td style=\"padding:4px 0;\"><strong>Urgency:</strong> {urgency}</td></tr>\n  <tr><td style=\"padding:4px 0;\"><strong>Specialty:</strong> {specialty}</td></tr>\n</table>\n\n<p style=\"margin-top: 20px;\">Please review the request at your earliest convenience.</p>",
     "button": "View Transaction"
+  },
+  "contact-form": {
+    "subject": "New Contact Form Submission",
+    "greet": "Hello Admin",
+    "body": "<p>A new contact form has been submitted. Below are the details:</p>\n\n<h3 style=\"margin: 18px 0 6px;\">Contact Information</h3>\n<table style=\"width:100%; border-collapse:collapse; font-size:14px;\">\n  <tr><td style=\"padding:4px 0;\"><strong>Name:</strong> {name}</td></tr>\n  <tr><td style=\"padding:4px 0;\"><strong>Email:</strong> {email}</td></tr>\n  <tr><td style=\"padding:4px 0;\"><strong>Phone:</strong> {phone}</td></tr>\n</table>\n\n<h3 style=\"margin: 18px 0 6px;\">Message</h3>\n<p style=\"font-size:14px; line-height:1.6; white-space:pre-wrap;\">{message}</p>"
   }
 }

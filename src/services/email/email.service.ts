@@ -56,6 +56,14 @@ type GenericPaymentPayload = {
   to: string;
   url?: string;
 };
+type ContactFormPayload = {
+  type: 'contact-form';
+  to: string;
+  name: string;
+  email: string;
+  phone: string;
+  message: string;
+};
 
 type MailJobPayload =
   | OtpMailPayload
@@ -63,7 +71,8 @@ type MailJobPayload =
   | OpinionCreatedPayload
   | PaymentStatusChangedPayload
   | PaymentAdminNotificationPayload
-  | GenericPaymentPayload;
+  | GenericPaymentPayload
+  | ContactFormPayload;
 
 @Injectable()
 export class MailService {
@@ -178,6 +187,7 @@ export class MailService {
       phone: string;
     };
     url: string;
+    url: string;
   }) {
     await this.handleJob({
       type: `payment-admin-notification`,
@@ -192,6 +202,23 @@ export class MailService {
       urgency: data.urgency,
       specialty: data.specialty,
       url: data.url,
+    });
+  }
+
+  async sendContactFormEmail(data: {
+    to: string;
+    name: string;
+    email: string;
+    phone: string;
+    message: string;
+  }) {
+    await this.handleJob({
+      type: 'contact-form',
+      to: data.to,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      message: data.message,
     });
   }
   public async handleJob(data: MailJobPayload) {
@@ -213,6 +240,9 @@ export class MailService {
     } else if (type === 'payment-admin-notification') {
       const payload = data as PaymentAdminNotificationPayload;
       dataPreview.email = payload.email;
+    } else if (type === 'contact-form') {
+      const payload = data as ContactFormPayload;
+      dataPreview.to = payload.to;
     }
 
     switch (type) {
@@ -340,6 +370,30 @@ export class MailService {
           label: 'View Transaction',
         };
         await this.sendNow(payload.email);
+        break;
+      }
+      case 'contact-form': {
+        const payload = data as ContactFormPayload;
+        this.mail_data.subject = this.stringService.formatMessage(
+          `email.contact-form.subject`,
+        );
+        this.mail_data.body = this.stringService.formatMessage(
+          `email.contact-form.body`,
+          {
+            name: payload.name,
+            email: payload.email,
+            phone: payload.phone,
+            message: payload.message,
+          },
+        );
+        this.mail_data.greet = this.stringService.formatMessage(
+          `email.contact-form.greet`,
+        );
+        this.mail_data.button = {
+          url: '#',
+          label: 'View Contact Form',
+        };
+        await this.sendNow(payload.to);
         break;
       }
       default:
