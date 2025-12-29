@@ -716,7 +716,7 @@ export class TransactionService {
       await this.textQueue.add('send-payment-sms', {
         phone: user?.phone,
         amount: transaction.amount,
-        orderId: transaction.razorpay_order_id ?? '',
+        orderId: request?.uid ?? '',
         paymentId: transaction.razorpay_payment_id ?? '',
       });
 
@@ -729,9 +729,8 @@ export class TransactionService {
       await this.textQueue.add('send-to-admin-payment-sms', {
         user_name: user?.full_name || 'User',
         reason: request?.request || '',
-        req_url:
-          config.get<{ [key: string]: string }>('frontend').base_url +
-          `/req/${request?.slug}`,
+        req_url:config.get<{ [key: string]: string }>('frontend').base_url +
+          `/admin/dashboard/${request?.slug}`,
         phone: admin?.phone || '',
       });
 

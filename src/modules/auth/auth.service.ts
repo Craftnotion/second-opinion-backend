@@ -177,13 +177,17 @@ export class AuthService {
 
   async test() {
     try {
-      const job = await this.textQueue.add('send-payment-sms', {
+      const job = await this.textQueue.add('send-to-admin-payment-sms', {
+        user_name: 'User',
+        reason: 'Test Reason',
+        req_url:
+          config.get<{ [key: string]: string }>('frontend').base_url +
+          `/admin/dashboard/`,
         phone: '9652188766',
-        orderId: 'order_DBJOWzybf0sJbb',
       });
-      
+
       this.logger.log(`Test SMS job added to queue with ID: ${job.id}`);
-      
+
       return {
         success: 1,
         message: 'SMS job queued successfully',

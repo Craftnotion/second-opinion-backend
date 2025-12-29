@@ -20,7 +20,7 @@ export class TextQueueProcessor extends WorkerHost {
     } else if (name === 'send-to-admin-payment-sms') {
       return this.sendAdminPaymentSms(job);
     } else if (name === 'response-created') {
-      return this.sendResponseCreatedSms(job);
+      return this.sendOpinionResponseSms(job);
     } else {
       throw new Error(`Unknown job type: ${name}`);
     }
@@ -59,10 +59,22 @@ export class TextQueueProcessor extends WorkerHost {
 
     const mobileNo = `91${phone}`;
     const templateId = '6949840842b20529c003ca35';
-console.log(orderId)
-    const url = `https://api.msg91.com/api/sendhttp.php?mobiles=${encodeURIComponent(mobileNo)}&authkey=${this.AUTH_KEY}&route=4&sender=${this.SENDER}&template_id=${templateId}&req_id=${encodeURIComponent(orderId)}`;
 
-    return this.sendSms(url, phone, 'Payment');
+    // Using MSG91 Flow API v5 for template-based SMS
+    const url = 'https://control.msg91.com/api/v5/flow';
+    const payload = {
+      template_id: templateId,
+      short_url: '0',
+      realTimeResponse: '1',
+      recipients: [
+        {
+          mobiles: mobileNo,
+          req_id: orderId,
+        },
+      ],
+    };
+
+    return this.sendSmsViaFlowApi(url, payload, phone, 'Payment');
   }
 
   private async sendAdminPaymentSms(job: Job<any, any, string>): Promise<any> {
@@ -80,29 +92,52 @@ console.log(orderId)
     const mobileNo = `91${phone}`;
     const templateId = '695210a19f204c2cd426feb3';
 
-    const url = `https://api.msg91.com/api/sendhttp.php?mobiles=${encodeURIComponent(mobileNo)}&authkey=${this.AUTH_KEY}&route=4&sender=${this.SENDER}&template_id=${templateId}&var1=${encodeURIComponent(user_name || '')}&var2=${encodeURIComponent(reason || '')}&var3=${encodeURIComponent(req_url || '')}`;
+    // Try the direct send API instead of flow API
+    const url = 'https://control.msg91.com/api/v5/flow/';
+    const payload = {
+      flow_id: templateId,
+      sender: this.SENDER,
+      mobiles: mobileNo,
+      user_name: user_name || 'Test User',
+      reason: reason || 'Test Reason',
+      req_url: req_url || 'https://test.com',
+    };
 
-    return this.sendSms(url, phone, 'Admin Payment Notification');
-  }
+    console.log(
+      'Sending Admin Payment SMS with payload:',
+      JSON.stringify(payload, null, 2),
+    );
 
-  private async sendResponseCreatedSms(
-    job: Job<any, any, string>,
-  ): Promise<any> {
-    const { phone, req_id, req_url } = job.data;
-    if (!phone || !req_id || !req_url) {
-      return {
-        success: 0,
-        message: 'Missing required data for response created SMS',
-      };
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          authkey: this.AUTH_KEY,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseData = await res.json();
+      console.log(
+        'Admin Payment Notification SMS API Response:',
+        JSON.stringify(responseData, null, 2),
+      );
+
+      if (!res.ok || responseData.type === 'error') {
+        throw new Error(`msg91 API error: ${JSON.stringify(responseData)}`);
+      }
+
+      return { success: true, response: responseData };
+    } catch (error) {
+      console.error('Failed to send Admin Payment SMS', {
+        phone,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
     }
-
-    const mobileNo = `91${phone}`;
-    const templateId = '6952107d843e98330428d583';
-    const url = `https://api.msg91.com/api/sendhttp.php?mobiles=${encodeURIComponent(mobileNo)}&authkey=${this.AUTH_KEY}&route=4&sender=${this.SENDER}&template_id=${templateId}&var1=${encodeURIComponent(req_id)}&var2=${encodeURIComponent(req_url)}`;
-
-    return this.sendSms(url, phone, 'Response Created');
   }
-
   private async sendSms(
     url: string,
     phone: string,
@@ -123,10 +158,7 @@ console.log(orderId)
         responseText.toLowerCase().includes('error') ||
         responseText.toLowerCase().includes('failed')
       ) {
-        return {
-          success: 0,
-          message: `msg91 API returned error: ${responseText}`,
-        };
+        throw new Error(`msg91 API returned error: ${responseText}`);
       }
 
       return { success: true, response: responseText };
@@ -135,6 +167,97 @@ console.log(orderId)
         phone,
         error: error instanceof Error ? error.message : String(error),
       });
+      throw error;
+    }
+  }
+
+  async sendOpinionResponseSms(job: Job<any, any, string>): Promise<any> {
+    const { phone, req_id, req_url } = job.data;
+
+    if (!phone || !req_id || !req_url) {
+      const error = new Error(
+        `Missing required data for opinion response SMS: phone=${phone}, req_id=${req_id}, req_url=${req_url}`,
+      );
+      console.error(
+        'TextQueueProcessor: Invalid opinion response SMS job data',
+        error,
+      );
+      throw error;
+    }
+
+    const mobileNo = `91${phone}`;
+    const templateId = '6952107d843e98330428d583';
+
+    // Using MSG91 Flow API v5 for template-based SMS
+    const url = 'https://control.msg91.com/api/v5/flow';
+    const payload = {
+      template_id: templateId,
+      short_url: '0',
+      realTimeResponse: '1',
+      recipients: [
+        {
+          mobiles: mobileNo,
+          req_id: req_id,
+          req_url: req_url,
+        },
+      ],
+    };
+
+    console.log('Sending Opinion Response SMS with payload:', payload);
+
+    return this.sendSmsViaFlowApi(url, payload, phone, 'Opinion Response');
+  }
+
+  private async sendSmsViaFlowApi(
+    url: string,
+    payload: any,
+    phone: string,
+    smsType: string,
+  ): Promise<any> {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          authkey: this.AUTH_KEY,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const responseData = await res.json();
+
+      // Log full response for debugging
+      console.log(
+        `${smsType} SMS API Response:`,
+        JSON.stringify(responseData, null, 2),
+      );
+
+      if (!res.ok) {
+        throw new Error(
+          `msg91 Flow API error: ${res.status} ${res.statusText} - ${JSON.stringify(responseData)}`,
+        );
+      }
+
+      if (
+        responseData.type === 'error' ||
+        responseData.message?.toLowerCase().includes('error')
+      ) {
+        throw new Error(
+          `msg91 Flow API returned error: ${responseData.message || JSON.stringify(responseData)}`,
+        );
+      }
+
+      return { success: true, response: responseData };
+    } catch (error) {
+      console.error(
+        `TextQueueProcessor: Failed to send ${smsType} SMS via Flow API`,
+        {
+          phone,
+          payload: JSON.stringify(payload),
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
       throw error;
     }
   }
