@@ -83,7 +83,7 @@ export class AdminService {
     await this.textQueue.add('response-created', {
       phone: request.user.phone,
       req_id: request.uid,
-      req_url: `${dbConfig.frontend_url}/user/dashboard/${request.slug}`,
+      req_url: `${config.get<{ [key: string]: string }>('frontend').base_url}/user/dashboard/${request.slug}`,
     });
 
     return { success: 1, message: 'common.opinion.submitted' };
