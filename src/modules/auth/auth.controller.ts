@@ -26,4 +26,10 @@ export class AuthController {
   async adminLogin(@Body() body: loginDto) {
     return await this.authService.login(body);
   }
+
+  @ApiOperation({ summary: 'test sms queue' })
+  @Get('test-sms-queue')
+  async testSmsQueue() {
+    return await this.authService.test();
+  }
 }

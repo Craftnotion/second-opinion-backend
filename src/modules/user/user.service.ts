@@ -21,7 +21,7 @@ export class UserService {
     private readonly mailService: MailService,
 
     @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    public readonly userRepository: Repository<User>,
     @InjectRepository(Requests)
     public readonly requestsRepository: Repository<Requests>,
     @InjectRepository(Document)
@@ -55,12 +55,17 @@ export class UserService {
 
     const { specialty, urgency, request, cost } = requestDto;
 
+    const pastTransaction = await this.transactionRepository.findOne({
+      where: { user_id: user.id },
+    });
+
+    const isFree = !pastTransaction && urgency === 'standard';
     const requests = new Requests();
     requests.user_id = user.id;
     requests.specialty = specialty || null;
     requests.urgency = urgency || null;
     requests.request = request || null;
-    requests.cost = cost ? parseFloat(cost) : null;
+    requests.cost = isFree ? 0 : parseInt(cost) || null;
     if (avatar.audioFile) {
       requests.avatar = avatar.audioFile[0] || null;
     }

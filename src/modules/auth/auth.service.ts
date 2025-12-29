@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/database/entities/user.entity';
@@ -19,6 +19,8 @@ import { LoginRequest } from 'src/types/request';
 const JwtConfig = config.get<configObject>('jwt');
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectQueue('text') private readonly textQueue: Queue,
     private readonly jwtService: JwtService,
@@ -105,7 +107,7 @@ export class AuthService {
   }
 
   async update(req: LoginRequest, requestDto: requestDto) {
-    const { email, full_name, phone, location, otp } = requestDto;
+    const { full_name, phone, location } = requestDto;
     const customer = await this.userRepository.findOneOrFail({
       where: { id: req.user.id },
     });
@@ -113,55 +115,55 @@ export class AuthService {
     customer.phone = phone;
     customer.location = location;
 
-    // Normalize email values for comparison (handle null, undefined, empty string)
-    const currentEmail = customer.email?.trim() || null;
-    const newEmail = email?.trim() || null;
+    // // Normalize email values for comparison (handle null, undefined, empty string)
+    // const currentEmail = customer.email?.trim() || null;
+    // const newEmail = email?.trim() || null;
 
     // Check if email is being updated (different from current email)
-    if (newEmail && newEmail !== currentEmail) {
-      if (otp) {
-        const isValid = await this.codeService.verifyOTP(
-          newEmail,
-          otp,
-          'email',
-        );
-        if (!isValid) {
-          return {
-            success: 0,
-            message: 'common.auth.failed',
-          };
-        }
-        customer.email = newEmail;
-        await this.userRepository.save(customer);
-        return {
-          success: 1,
-          message: 'common.profile.uptodate',
-          data: {
-            user: customer,
-          },
-        };
-      } else {
-        try {
-          const code = await this.codeService.generateOTP(newEmail, 'email');
+    // if (newEmail && newEmail !== currentEmail) {
+    //   if (otp) {
+    //     const isValid = await this.codeService.verifyOTP(
+    //       newEmail,
+    //       otp,
+    //       'email',
+    //     );
+    //     if (!isValid) {
+    //       return {
+    //         success: 0,
+    //         message: 'common.auth.failed',
+    //       };
+    //     }
+    //     customer.email = newEmail;
+    //     await this.userRepository.save(customer);
+    //     return {
+    //       success: 1,
+    //       message: 'common.profile.uptodate',
+    //       data: {
+    //         user: customer,
+    //       },
+    //     };
+    //   } else {
+    //     try {
+    //       const code = await this.codeService.generateOTP(newEmail, 'email');
 
-          await this.mailService.otpMail({ otp: code, identity: newEmail });
+    //       await this.mailService.otpMail({ otp: code, identity: newEmail });
 
-          return {
-            success: 2,
-            message: 'common.profile.verify_email_sent',
-            data: {
-              otp: code,
-            },
-          };
-        } catch (error) {
-          console.error('Error generating OTP:', error);
-          return {
-            success: 0,
-            message: 'common.auth.failed',
-          };
-        }
-      }
-    }
+    //       return {
+    //         success: 2,
+    //         message: 'common.profile.verify_email_sent',
+    //         data: {
+    //           otp: code,
+    //         },
+    //       };
+    //     } catch (error) {
+    //       console.error('Error generating OTP:', error);
+    //       return {
+    //         success: 0,
+    //         message: 'common.auth.failed',
+    //       };
+    //     }
+    //   }
+    // }
 
     await this.userRepository.save(customer);
     return {
@@ -171,5 +173,33 @@ export class AuthService {
         user: customer,
       },
     };
+  }
+
+  async test() {
+    try {
+      const job = await this.textQueue.add('send-payment-sms', {
+        phone: '9652188766',
+        orderId: 'order_DBJOWzybf0sJbb',
+      });
+      
+      this.logger.log(`Test SMS job added to queue with ID: ${job.id}`);
+      
+      return {
+        success: 1,
+        message: 'SMS job queued successfully',
+        data: {
+          jobId: job.id,
+          status: 'queued',
+          note: 'Check server logs for SMS processing result',
+        },
+      };
+    } catch (error) {
+      this.logger.error('Failed to queue test SMS', error);
+      return {
+        success: 0,
+        message: 'Failed to queue SMS',
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 }

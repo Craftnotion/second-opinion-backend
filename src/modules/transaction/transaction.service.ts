@@ -13,6 +13,8 @@ import { HttpResponse, TransactionStatus } from 'src/types/types';
 import { TransactionDto } from './dto/transaction.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { MailService } from 'src/services/email/email.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 const Razorpay = require('razorpay');
 
 @Injectable()
@@ -34,6 +36,7 @@ export class TransactionService {
     @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
     private readonly mailService: MailService,
+    @InjectQueue('text') private readonly textQueue: Queue,
   ) {
     this.razorpay = new Razorpay({
       key_id: this.razorpayConfig.api_key_id,
@@ -47,6 +50,7 @@ export class TransactionService {
   ): Promise<Record<string, any>> {
     const user = await this.userService.getUserbyid(userId);
     const request = await this.userService.getRequestById(requestId);
+
     if (!user) {
       throw new Error('User not found');
     }
@@ -54,53 +58,102 @@ export class TransactionService {
       throw new Error('Request not found');
     }
 
+    // Check if this qualifies as a free request
+    const pastTransaction = await this.TransactionRepository.findOne({
+      where: {
+        user_id: user.id,
+        status: 'completed',
+      },
+      order: { created_at: 'DESC' },
+    });
+
+    const isFree = !pastTransaction && request.urgency === 'standard';
+
+    // Create transaction
     const transaction = this.TransactionRepository.create({
       user: user,
-      amount: Number(amount),
-      status: 'pending' as TransactionStatus,
+      amount: isFree ? 0 : Number(amount),
+      status: isFree ? 'completed' : 'pending',
       request_id: request.id,
     });
     const savedTransaction = await this.TransactionRepository.save(transaction);
 
+    if (isFree) {
+      this.logger.log(
+        `[FREE_REQUEST] Created free transaction ${savedTransaction.id} for user ${userId}`,
+      );
+
+      // Send SMS notification
+      await this.textQueue.add('send-payment-sms', {
+        phone: user.phone,
+        orderId: request.uid,
+      });
+
+      const admin = await this.userRepository.findOne({
+        where: { role: 'admin' },
+      });
+      await this.textQueue.add('send-to-admin-payment-sms', {
+        user_name: user?.full_name || 'User',
+        reason: request?.request || '',
+        req_url:
+          config.get<{ [key: string]: string }>('frontend').base_url +
+          `/req/${request?.slug}`,
+        phone: admin?.phone || '',
+      });
+
+      return {
+        success: 1,
+        message: 'common.transaction.free_request',
+        data: {
+          transaction_id: savedTransaction.id,
+          amount: 0,
+          status: 'completed',
+          is_free: true,
+          request_id: request.id,
+        },
+      };
+    }
+
+    // Handle paid requests - create Razorpay order
     const options = {
-      amount: Number(amount) * 100, // amount in the smallest currency unit
+      amount: Number(amount) * 100,
       currency: 'INR',
       receipt: `receipt_order_${savedTransaction.id}`,
       notes: {
         user_id: userId,
         transaction_id: savedTransaction.id,
-        user_phone: user?.phone || '',
-        user_name: user?.full_name || '',
-        user_email: user?.email || '',
+        user_phone: user.phone || '',
+        user_name: user.full_name || '',
+        user_email: user.email || '',
       },
     };
 
     const order = await this.razorpay.orders.create(options);
-    console.log('Razorpay Order:', order);
 
-    const transactionWithOrderId =
-      await this.TransactionRepository.findOneOrFail({
-        where: { id: savedTransaction.id },
-      });
-    transactionWithOrderId.razorpay_order_id = order.id;
-    await this.TransactionRepository.save(transactionWithOrderId);
+    // Link Razorpay order to transaction
+    savedTransaction.razorpay_order_id = order.id;
+    await this.TransactionRepository.save(savedTransaction);
 
     return {
-      id: order.id,
-      order_id: order.id, // Alias for consistency with frontend expectations
-      merchant_id: this.razorpayConfig.merchant_id,
-      entity: order.entity,
-      amount: order.amount,
-      amount_paid: order.amount_paid,
-      amount_due: order.amount_due,
-      currency: order.currency,
-      receipt: order.receipt,
-      status: order.status,
-      attempts: order.attempts,
-      created_at: order.created_at,
-      key: this.razorpayConfig.api_key_id,
-      transaction_id: savedTransaction.id,
-      notes: options.notes, // Include notes for reference
+      success: 1,
+      message: 'common.transaction.order.created',
+      data: {
+        id: order.id,
+        order_id: order.id,
+        merchant_id: this.razorpayConfig.merchant_id,
+        entity: order.entity,
+        amount: order.amount,
+        amount_paid: order.amount_paid,
+        amount_due: order.amount_due,
+        currency: order.currency,
+        receipt: order.receipt,
+        status: order.status,
+        attempts: order.attempts,
+        created_at: order.created_at,
+        key: this.razorpayConfig.api_key_id,
+        transaction_id: savedTransaction.id,
+        notes: options.notes,
+      },
     };
   }
 
@@ -204,9 +257,7 @@ export class TransactionService {
       const payment = await this.razorpay.payments.fetch(paymentId);
 
       if (payment.status === 'captured') {
-        this.logger.log(
-          `[WEBHOOK] Payment ${paymentId} is already captured.`,
-        );
+        this.logger.log(`[WEBHOOK] Payment ${paymentId} is already captured.`);
         return true;
       }
 
@@ -296,7 +347,8 @@ export class TransactionService {
         if (transaction) {
           transaction.status = 'completed';
           transaction.razorpay_payment_id = payment.id;
-          if (payment.order_id) transaction.razorpay_order_id = payment.order_id;
+          if (payment.order_id)
+            transaction.razorpay_order_id = payment.order_id;
 
           await this.TransactionRepository.save(transaction);
           await this.notifyPaymentSuccess(transaction, transaction.status);
@@ -369,7 +421,8 @@ export class TransactionService {
         if (transaction) {
           transaction.status = 'failed';
           transaction.razorpay_payment_id = payment.id;
-          if (payment.order_id) transaction.razorpay_order_id = payment.order_id;
+          if (payment.order_id)
+            transaction.razorpay_order_id = payment.order_id;
           await this.TransactionRepository.save(transaction);
           this.logger.log(
             `[WEBHOOK] Transaction ${transaction.id} marked failed`,
@@ -392,12 +445,16 @@ export class TransactionService {
             this.logger.log(
               `[WEBHOOK] Transaction ${transaction.id} already completed`,
             );
-            return { success: 1, message: 'common.transaction.already.completed' };
+            return {
+              success: 1,
+              message: 'common.transaction.already.completed',
+            };
           }
 
           transaction.status = 'completed';
           transaction.razorpay_payment_id = payment.id;
-          if (payment.order_id) transaction.razorpay_order_id = payment.order_id;
+          if (payment.order_id)
+            transaction.razorpay_order_id = payment.order_id;
 
           await this.TransactionRepository.save(transaction);
           await this.notifyPaymentSuccess(transaction, transaction.status);
@@ -624,7 +681,7 @@ export class TransactionService {
     // NOTE: transaction entity has `user_id`, not `company_id`.
     // Using `company_id` was returning undefined which led to an incorrect user lookup
     // and mails being delivered to an unintended recipient (e.g. id 0). Use `user_id`.
-    const user = await this.userService.getUserbyid(
+    let user = await this.userService.getUserbyid(
       transaction.user_id?.toString() || '',
     );
 
@@ -633,27 +690,49 @@ export class TransactionService {
       .leftJoinAndSelect('requests.user', 'user')
       .where('requests.id = :id', { id: transaction.request_id })
       .getOne();
-    if (!user?.email) {
-      this.logger.warn(
-        `Payment success email skipped: user email missing for transaction ${transaction.id} (user_id: ${transaction.user_id})`,
-      );
-      return;
-    }
+    // if (!user?.email) {
+    //   this.logger.warn(
+    //     `Payment success email skipped: user email missing for transaction ${transaction.id} (user_id: ${transaction.user_id})`,
+    //   );
+    //   return;
+    // }
 
     try {
-      this.logger.log(
-        `Sending payment success email. Company: ${user.email}, amount: ${transaction.amount}, order: ${
-          transaction.razorpay_order_id ?? ''
-        }`,
-      );
+      // this.logger.log(
+      //   `Sending payment success email. Company: ${user.email}, amount: ${transaction.amount}, order: ${
+      //     transaction.razorpay_order_id ?? ''
+      //   }`,
+      // );
 
-      await this.mailService.sendPaymentSuccessEmail({
-        to: user.email,
-        name: user.full_name || 'User',
+      // await this.mailService.sendPaymentSuccessEmail({
+      //   to: user.email,
+      //   name: user.full_name || 'User',
+      //   amount: transaction.amount,
+      //   orderId: transaction.razorpay_order_id ?? '',
+      //   paymentId: transaction.razorpay_payment_id ?? '',
+      //   paidAt: transaction.updated_at,
+      // });
+
+      await this.textQueue.add('send-payment-sms', {
+        phone: user?.phone,
         amount: transaction.amount,
         orderId: transaction.razorpay_order_id ?? '',
         paymentId: transaction.razorpay_payment_id ?? '',
-        paidAt: transaction.updated_at,
+      });
+
+      const admin = await this.userService.userRepository.findOne({
+        where: {
+          role: 'admin',
+        },
+      });
+
+      await this.textQueue.add('send-to-admin-payment-sms', {
+        user_name: user?.full_name || 'User',
+        reason: request?.request || '',
+        req_url:
+          config.get<{ [key: string]: string }>('frontend').base_url +
+          `/req/${request?.slug}`,
+        phone: admin?.phone || '',
       });
 
       await this.mailService.sendPaymentSuccessNotificationToAdmins({
@@ -667,15 +746,17 @@ export class TransactionService {
         urgency: request?.urgency || '',
         specialty: request?.specialty || '',
         user: {
-          name: user.full_name ?? 'User',
-          email: user.email,
-          phone: user.phone ?? '',
+          name: user?.full_name ?? 'User',
+          email: user?.email ?? '',
+          phone: user?.phone ?? '',
         },
-        url: config.get<{ [key: string]: string }>('frontend').base_url+`/admin/dashboard`
+        url:
+          config.get<{ [key: string]: string }>('frontend').base_url +
+          `/admin/dashboard`,
       });
     } catch (error) {
       this.logger.error(
-        `Failed to send payment success email for ${user.email}`,
+        `Failed to send payment success email for ${user?.email}`,
         (error as Error)?.stack,
       );
     }

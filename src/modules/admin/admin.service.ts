@@ -10,6 +10,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { opinionDocument } from 'src/database/entities/opinion-document.entity';
 import { MailService } from 'src/services/email/email.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 const dbConfig = config.get<{ [key: string]: string }>('app');
 
 @Injectable()
@@ -21,6 +23,7 @@ export class AdminService {
     @InjectRepository(opinionDocument)
     private readonly opinionDocumentRepository: Repository<opinionDocument>,
     private readonly mailService: MailService,
+    @InjectQueue('text') private readonly textQueue: Queue,
   ) {}
 
   async getRequests(paramsFilter: filterDto, req: LoginRequest) {
@@ -76,6 +79,13 @@ export class AdminService {
       request: request.request ?? '',
       url: `${dbConfig.frontend_url}/user/requests/${request.slug}`,
     });
+
+    await this.textQueue.add('response-created', {
+      phone: request.user.phone,
+      req_id: request.uid,
+      req_url: `${dbConfig.frontend_url}/user/requests/${request.slug}`,
+    });
+
     return { success: 1, message: 'common.opinion.submitted' };
   }
 

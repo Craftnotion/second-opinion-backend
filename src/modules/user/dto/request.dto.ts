@@ -9,13 +9,13 @@ export class requestDto {
   @IsOptional()
   full_name: string;
 
-  @IsString()
-  @IsOptional()
-  email: string;
+  // @IsString()
+  // @IsOptional()
+  // email: string;
 
-  @IsString()
-  @IsOptional()
-  otp: string;
+  // @IsString()
+  // @IsOptional()
+  // otp: string;
 
   @IsString()
   @IsOptional()

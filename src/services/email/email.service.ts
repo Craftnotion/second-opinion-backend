@@ -1,10 +1,9 @@
-import { MailerService } from '@nestjs-modules/mailer';
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { StringService } from '../string/string.service';
 // template names are used (resolved by Mailer template.dir)
 import { mail_data } from 'src/types/types';
-
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { MailerService } from '@nestjs-modules/mailer';
 type OtpMailPayload = { type: 'otp'; identity: string; otp: string };
 type NewApplicationPayload = {
   type: 'new-application';
@@ -186,7 +185,6 @@ export class MailService {
       email: string;
       phone: string;
     };
-    url: string;
     url: string;
   }) {
     await this.handleJob({

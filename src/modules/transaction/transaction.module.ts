@@ -6,12 +6,16 @@ import { Transaction } from 'src/database/entities/transaction.entity';
 import { User } from 'src/database/entities/user.entity';
 import { UserModule } from '../user/user.module';
 import { MailQueueModule } from 'src/queue/email-queue/email-queue.module';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Transaction, User]),
     forwardRef(() => UserModule),
     MailQueueModule,
+    BullModule.registerQueue({
+      name: 'text',
+    }),
   ],
   controllers: [TransactionController],
   providers: [TransactionService],
