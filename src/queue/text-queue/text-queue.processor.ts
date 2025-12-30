@@ -15,13 +15,13 @@ export class TextQueueProcessor extends WorkerHost {
 
     if (name === 'send-sms') {
       console.log('Processing send-sms job:', job.data);
-      return this.sendOtpSms(job);
+      return await this.sendOtpSms(job);
     } else if (name === 'send-payment-sms') {
       console.log('Processing send-payment-sms job:', job.data);
-      return this.sendPaymentSms(job);
+      return await this.sendPaymentSms(job);
     } else if (name === 'send-to-admin-payment-sms') {
       console.log('Processing send-to-admin-payment-sms job:', job.data);
-      return this.sendAdminPaymentSms(job);
+      return await this.sendAdminPaymentSms(job);
     } else if (name === 'response-created') {
       console.log('Processing response-created job:', job.data);
       return this.sendOpinionResponseSms(job);
