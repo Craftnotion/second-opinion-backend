@@ -94,52 +94,40 @@ export class UserService {
     }
 
     // Create transaction and Razorpay order
-    if (savedRequest.cost && savedRequest.cost > 0) {
-      try {
-        const orderData = await this.transactionService.createOrderForRequest(
-          user.id.toString(),
-          savedRequest.id.toString(),
-          savedRequest.cost.toString(),
-        );
+    try {
+      const orderData = await this.transactionService.createOrderForRequest(
+        user.id.toString(),
+        savedRequest.id.toString(),
+        savedRequest.cost !== null && savedRequest.cost !== undefined
+          ? savedRequest.cost.toString()
+          : '0',
+      );
 
-        if (orderData.transaction_id) {
-          const transaction = await this.transactionRepository.findOne({
-            where: { id: orderData.transaction_id },
-          });
-        }
-
-        return {
-          success: 1,
-          message: 'common.request.created',
-          data: {
-            id: savedRequest.id,
-            cost: savedRequest.cost,
-            specialty: savedRequest.specialty,
-            urgency: savedRequest.urgency,
-            request: savedRequest,
-            order: orderData,
-          },
-        };
-      } catch (error) {
-        console.error('Error creating payment order:', error);
-        return {
-          success: 0,
-          message: 'Request created but payment order failed',
-        };
+      if (orderData.transaction_id) {
+        const transaction = await this.transactionRepository.findOne({
+          where: { id: orderData.transaction_id },
+        });
       }
-    }
 
-    return {
-      success: 1,
-      message: 'common.request.created',
-      data: {
-        id: savedRequest.id,
-        cost: savedRequest.cost,
-        specialty: savedRequest.specialty,
-        urgency: savedRequest.urgency,
-        request: savedRequest,
-      },
-    };
+      return {
+        success: 1,
+        message: 'common.request.created',
+        data: {
+          id: savedRequest.id,
+          cost: savedRequest.cost,
+          specialty: savedRequest.specialty,
+          urgency: savedRequest.urgency,
+          request: savedRequest,
+          order: orderData,
+        },
+      };
+    } catch (error) {
+      console.error('Error creating payment order:', error);
+      return {
+        success: 0,
+        message: 'Request created but payment order failed',
+      };
+    }
   }
 
   async getRequests(paramsFilter: filterDto, req: LoginRequest) {
@@ -274,14 +262,14 @@ export class UserService {
     return { success: 1, message: 'common.request.found', data: request };
   }
 
-  async isFree(user:LoginRequest){
-    const pastTransaction =  await this.transactionRepository.findOne({
+  async isFree(user: LoginRequest) {
+    const pastTransaction = await this.transactionRepository.findOne({
       where: { user_id: user.user.id, status: 'completed' },
     });
     return {
       success: 1,
       message: 'common.user.free_status',
       data: !pastTransaction,
-    }
+    };
   }
 }

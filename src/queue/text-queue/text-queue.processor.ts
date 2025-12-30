@@ -14,12 +14,16 @@ export class TextQueueProcessor extends WorkerHost {
     const { name } = job;
 
     if (name === 'send-sms') {
+      console.log('Processing send-sms job:', job.data);
       return this.sendOtpSms(job);
     } else if (name === 'send-payment-sms') {
+      console.log('Processing send-payment-sms job:', job.data);
       return this.sendPaymentSms(job);
     } else if (name === 'send-to-admin-payment-sms') {
+      console.log('Processing send-to-admin-payment-sms job:', job.data);
       return this.sendAdminPaymentSms(job);
     } else if (name === 'response-created') {
+      console.log('Processing response-created job:', job.data);
       return this.sendOpinionResponseSms(job);
     } else {
       throw new Error(`Unknown job type: ${name}`);
