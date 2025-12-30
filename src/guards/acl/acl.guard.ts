@@ -19,7 +19,7 @@ const Is = (roleExpression: string): Type<CanActivate> => {
           message: 'auth.token.invalid',
         });
 
-      if (roleExpression === 'admin') return true;
+      if (user.role === 'admin') return true;
 
       // console.log(!check(roleExpression, (operand: any) => _.includes([user?.roles[0]?.slug], operand)))
       // if (!check(roleExpression, (operand: any) => _.includes([user?.roles[0]?.slug], operand))) throw new UnauthorizedException({ success: 0, message: 'auth.inadequatePermission' })

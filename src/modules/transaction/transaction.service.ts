@@ -97,7 +97,7 @@ export class TransactionService {
         reason: request?.request || '',
         req_url:
           config.get<{ [key: string]: string }>('frontend').base_url +
-          `/req/${request?.slug}`,
+          `/admin/dashboard/${request?.slug}`,
         phone: admin?.phone || '',
       });
 
@@ -713,26 +713,30 @@ export class TransactionService {
       //   paidAt: transaction.updated_at,
       // });
 
-      await this.textQueue.add('send-payment-sms', {
-        phone: user?.phone,
-        amount: transaction.amount,
-        orderId: request?.uid ?? '',
-        paymentId: transaction.razorpay_payment_id ?? '',
-      });
-
       const admin = await this.userService.userRepository.findOne({
         where: {
           role: 'admin',
         },
       });
 
-      await this.textQueue.add('send-to-admin-payment-sms', {
-        user_name: user?.full_name || 'User',
-        reason: request?.request || '',
-        req_url:config.get<{ [key: string]: string }>('frontend').base_url +
-          `/admin/dashboard/${request?.slug}`,
-        phone: admin?.phone || '',
-      });
+      const [adminJob, userJob] = await Promise.all([
+        this.textQueue.add('send-to-admin-payment-sms', {
+          user_name: user?.full_name || 'User',
+          reason: request?.request || '',
+          req_url:
+            config.get<{ [key: string]: string }>('frontend').base_url +
+            `/admin/dashboard/${request?.slug}`,
+          phone: admin?.phone || '',
+        }),
+        this.textQueue.add('send-payment-sms', {
+          phone: user?.phone,
+          amount: transaction.amount,
+          orderId: request?.uid ?? '',
+          paymentId: transaction.razorpay_payment_id ?? '',
+        }),
+      ]);
+
+      console.log(`Payment SMS jobs added to queue. User Job ID: ${userJob.id}, Admin Job ID: ${adminJob.id}`);
 
       await this.mailService.sendPaymentSuccessNotificationToAdmins({
         transactionId: transaction.id,
