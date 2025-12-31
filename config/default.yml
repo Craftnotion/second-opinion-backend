@@ -30,7 +30,7 @@ typeorm:
   logging: true
   connection: mysql
   username: root
-  password: password
+  password: "@Ctive123gcs"
   database: second_opinion
   secure: true
 
