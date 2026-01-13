@@ -190,7 +190,7 @@ export class TextQueueProcessor extends WorkerHost {
     }
 
     const mobileNo = `91${phone}`;
-    const templateId = '6952107d843e98330428d583';
+    const templateId = '6965cc9a4423ca432831a592';
 
     // Using MSG91 Flow API v5 for template-based SMS
     const url = 'https://control.msg91.com/api/v5/flow';
