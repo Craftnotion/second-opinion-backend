@@ -91,7 +91,7 @@ export interface mail_data {
 }
 
 export interface requestPayload {
-  requestSlug: string;
+  requestUid: string;
   userId: string;
 }
 

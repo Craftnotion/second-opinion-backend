@@ -70,9 +70,6 @@ export class Requests {
   @Column({ type: 'varchar', nullable: true })
   avatar: string | Express.Multer.File | null;
 
-  @Column()
-  slug: string;
-
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 

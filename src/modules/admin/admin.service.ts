@@ -24,7 +24,7 @@ export class AdminService {
     private readonly opinionDocumentRepository: Repository<opinionDocument>,
     private readonly mailService: MailService,
     @InjectQueue('text') private readonly textQueue: Queue,
-  ) {}
+  ) { }
 
   async getRequests(paramsFilter: filterDto, req: LoginRequest) {
     return await this.userService.getRequests(paramsFilter, req);
@@ -72,7 +72,7 @@ export class AdminService {
         await this.opinionDocumentRepository.save(document);
       }
     }
-    await this.userService.updateRequestStatus(request.slug);
+    await this.userService.updateRequestStatus(request.uid);
     // await this.mailService.opinionCreated({
     //   email: request.user.email ?? '',
     //   user_name: request.user.full_name ?? 'User',
@@ -83,7 +83,7 @@ export class AdminService {
     await this.textQueue.add('response-created', {
       phone: request.user.phone,
       req_id: request.uid,
-      req_url: `${config.get<{ [key: string]: string }>('frontend').base_url}/req/${request.slug}`,
+      req_url: `${config.get<{ [key: string]: string }>('frontend').base_url}/req/${request.uid}`,
     });
 
     return { success: 1, message: 'common.opinion.submitted' };
@@ -93,11 +93,11 @@ export class AdminService {
     return await this.userService.getRequestDetails(id, req);
   }
 
-  async linkGenerator(slug: string) {
-    return await this.userService.generateLinks(slug);
+  async linkGenerator(uid: string) {
+    return await this.userService.generateLinks(uid);
   }
 
-  async getRequestByIdTemp(requestSlug: string, userId: string) {
-    return await this.userService.getRequestDetailsTemp(requestSlug, userId);
+  async getRequestByIdTemp(requestUid: string, userId: string) {
+    return await this.userService.getRequestDetailsTemp(requestUid, userId);
   }
 }

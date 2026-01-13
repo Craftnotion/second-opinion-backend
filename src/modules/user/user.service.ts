@@ -32,7 +32,7 @@ export class UserService {
     private readonly transactionService: TransactionService,
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
-  ) {}
+  ) { }
 
   async update(req: LoginRequest, requestDto: requestDto) {
     return await this.authService.update(req, requestDto);
@@ -169,7 +169,7 @@ export class UserService {
   }
 
   async getRequestById(id: string) {
-    // Try to find by numeric ID first, then by slug
+    // Try to find by numeric ID first, then by uid
     const numericId = parseInt(id, 10);
     if (!isNaN(numericId)) {
       const request = await this.requestsRepository.findOne({
@@ -180,16 +180,16 @@ export class UserService {
         return request;
       }
     }
-    // Fallback to slug lookup
+    // Fallback to uid lookup
     return await this.requestsRepository.findOne({
-      where: { slug: id },
+      where: { uid: id },
       relations: ['user'],
     });
   }
 
   async updateRequestStatus(id: string) {
     const request = await this.requestsRepository.findOne({
-      where: { slug: id },
+      where: { uid: id },
     });
     if (!request) {
       return { success: 0, message: 'Request not found' };
@@ -205,7 +205,7 @@ export class UserService {
       relations = ['documents', 'opinion', 'opinion.opinionDocuments', 'user'];
     }
     const request = await this.requestsRepository.findOne({
-      where: { slug: id },
+      where: { uid: id },
       relations: relations,
     });
     if (!request) {
@@ -233,7 +233,7 @@ export class UserService {
     return await this.requestsRepository.findOne({ where: { id: id } });
   }
 
-  async generateLinks(slug: string) {
+  async generateLinks(uid: string) {
     const dbConfig = config.get<{ [key: string]: string }>('frontend');
     const admin = await this.userRepository.findOne({
       where: { role: 'admin' },
@@ -241,7 +241,7 @@ export class UserService {
     const token = await this.authService.GenerateToken(
       {
         request: {
-          requestSlug: slug,
+          requestUid: uid,
           userId: admin?.id || 0,
         },
       },
@@ -251,9 +251,9 @@ export class UserService {
     return { success: 1, message: 'Link generated', data: team_url };
   }
 
-  async getRequestDetailsTemp(requestSlug: string, userId: string) {
+  async getRequestDetailsTemp(requestUid: string, userId: string) {
     const request = await this.requestsRepository.findOne({
-      where: { slug: requestSlug },
+      where: { uid: requestUid },
       relations: ['documents', 'opinion', 'opinion.opinionDocuments', 'user'],
     });
     if (!request) {

@@ -37,10 +37,10 @@ import { Is } from 'src/guards/acl/acl.guard';
 
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) { }
 
   @Get('requests')
-  @UseGuards(JwtGuard,Is('admin'))
+  @UseGuards(JwtGuard, Is('admin'))
   @ApiBearerAuth('authorization')
   @ApiOperation({ summary: 'getting all requests' })
   @ApiQuery({ type: filterDto })
@@ -54,7 +54,7 @@ export class AdminController {
   @ApiOperation({ summary: 'creating an opinion for the request' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: OpinionDto })
-  @UseGuards(JwtGuard,Is('admin'))
+  @UseGuards(JwtGuard, Is('admin'))
   @ApiBearerAuth('authorization')
   @UseInterceptors(
     FileFieldsInterceptor([
@@ -75,19 +75,19 @@ export class AdminController {
   }
 
   @Get('requests/:id')
-  @UseGuards(JwtGuard,Is('admin'))
+  @UseGuards(JwtGuard, Is('admin'))
   @ApiBearerAuth('authorization')
   @ApiOperation({ summary: 'getting request by id' })
   async getRequestById(@Req() req: LoginRequest, @Param('id') id: string) {
     return await this.adminService.getRequestById(id, req);
   }
 
-  @Post('generate-link/:slug')
+  @Post('generate-link/:uid')
   // @UseGuards(JwtGuard)
   @ApiBearerAuth('authorization')
   @ApiOperation({ summary: 'generating link for request' })
-  async generateLink(@Param('slug') slug: string) {
-    return await this.adminService.linkGenerator(slug);
+  async generateLink(@Param('uid') uid: string) {
+    return await this.adminService.linkGenerator(uid);
   }
 
   @Get('/opinion')
@@ -96,7 +96,7 @@ export class AdminController {
   @ApiOperation({ summary: 'getting opinion by token' })
   async getOpinionByToken(@Req() req: CheckInRequest) {
     return await this.adminService.getRequestByIdTemp(
-      req.user.request.requestSlug,
+      req.user.request.requestUid,
       req.user.request.userId,
     );
   }

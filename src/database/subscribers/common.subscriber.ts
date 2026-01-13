@@ -43,12 +43,13 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
     const columns = event.metadata.columns.map((col) => col.propertyName);
 
     if (columns.includes('slug') || columns.includes('uid')) {
-      event.entity.slug = await this.createSlug(event);
-      if (event.entity?.constructor?.name === 'Requests') {
-        event.entity.uid = event.entity.slug.toUpperCase();
-      } else {
+      // For Requests, we don't have slug column - uid is set via uidGenerator in service
+      const isRequestsEntity = event.entity?.constructor?.name === 'Requests';
+      if (!isRequestsEntity) {
+        event.entity.slug = await this.createSlug(event);
         event.entity.uid = event.entity.slug;
       }
+      // For Requests, uid is set in user.service.ts via uidGenerator
     }
     if (columns.includes('avatar') && typeof event.entity.avatar === 'object') {
       event.entity.avatar = await this.fileService.saveFile(
@@ -95,18 +96,24 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
   async afterInsert(event: InsertEvent<any>) {
     const columns = event.metadata.columns.map((col) => col.propertyName);
 
+    // Skip slug generation for Requests (no slug column)
+    const isRequestsEntity = event.entity?.constructor?.name === 'Requests';
+    if (isRequestsEntity) {
+      // For Requests, uid is already set in user.service.ts
+      // Just handle avatar processing
+      if (columns.includes('avatar')) {
+        await this.handleImageProcessing(event.entity);
+      }
+      return;
+    }
+
     if (columns.includes('slug')) {
       const slugBase = this.getSlugBase(event.entity);
       let baseSlug: string;
-      const isRequestsEntity = event.entity?.constructor?.name === 'Requests';
 
-      if (isRequestsEntity) {
-        baseSlug = `${slugBase}${event.entity.id}`;
-      } else {
-        baseSlug = slugify(`${slugBase}-${event.entity.id}`, {
-          lower: true,
-        });
-      }
+      baseSlug = slugify(`${slugBase}-${event.entity.id}`, {
+        lower: true,
+      });
 
       const repository = event.manager.getRepository(event.metadata.target);
       let uniqueSlug = baseSlug;
@@ -168,17 +175,8 @@ export class CommonSubscriber implements EntitySubscriberInterface<any> {
         event.entity.slug = uniqueSlug;
       }
 
-      // For Requests, make slug and uid uppercase
-      if (isRequestsEntity) {
-        const upperSlug = uniqueSlug.toUpperCase();
-        await repository.update(
-          { id: event.entity.id },
-          { slug: upperSlug, uid: upperSlug },
-        );
-        event.entity.slug = upperSlug;
-        event.entity.uid = upperSlug;
-      } else if (columns.includes('uid')) {
-        // For other entities, uid matches slug
+      // For other entities with uid column, uid matches slug
+      if (columns.includes('uid')) {
         await repository.update({ id: event.entity.id }, { uid: uniqueSlug });
         event.entity.uid = uniqueSlug;
       }
