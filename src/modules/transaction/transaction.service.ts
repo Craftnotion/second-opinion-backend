@@ -97,7 +97,7 @@ export class TransactionService {
         reason: request?.request || '',
         req_url:
           config.get<{ [key: string]: string }>('frontend').base_url +
-          `/admin/dashboard/${request?.slug}`,
+          `/admin/dashboard/${request?.uid}`,
         phone: admin?.phone || '',
       });
 
@@ -279,7 +279,7 @@ export class TransactionService {
         // Handle race conditions
         if (
           errorDescription ===
-            'Request failed because another payment operation is in progress' ||
+          'Request failed because another payment operation is in progress' ||
           errorDescription === 'Payment has already been captured'
         ) {
           this.logger.log(
@@ -720,41 +720,41 @@ export class TransactionService {
       });
 
       // const [adminJob, userJob] = await Promise.all([
-        this.textQueue.add('send-to-admin-payment-sms', {
-          user_name: user?.full_name || 'User',
-          reason: request?.request || '',
-          req_url:
-            config.get<{ [key: string]: string }>('frontend').base_url +
-            `/req/${request?.slug}`,
-          phone: admin?.phone || '',
-        }),
+      this.textQueue.add('send-to-admin-payment-sms', {
+        user_name: user?.full_name || 'User',
+        reason: request?.request || '',
+        req_url:
+          config.get<{ [key: string]: string }>('frontend').base_url +
+          `/req/${request?.uid}`,
+        phone: admin?.phone || '',
+      }),
         this.textQueue.add('send-payment-sms', {
           phone: user?.phone,
           amount: transaction.amount,
           orderId: request?.uid ?? '',
           paymentId: transaction.razorpay_payment_id ?? '',
         }),
-      // ]);
+        // ]);
 
-      await this.mailService.sendPaymentSuccessNotificationToAdmins({
-        transactionId: transaction.id,
-        amount: transaction.amount,
-        orderId: transaction.razorpay_order_id ?? '',
-        paymentId: transaction.razorpay_payment_id ?? '',
-        paidAt: transaction.updated_at,
-        email: config.get<{ [key: string]: string }>('email').admin_email,
-        request: request?.request || '',
-        urgency: request?.urgency || '',
-        specialty: request?.specialty || '',
-        user: {
-          name: user?.full_name ?? 'User',
-          email: user?.email ?? '',
-          phone: user?.phone ?? '',
-        },
-        url:
-          config.get<{ [key: string]: string }>('frontend').base_url +
-          `/admin/dashboard`,
-      });
+        await this.mailService.sendPaymentSuccessNotificationToAdmins({
+          transactionId: transaction.id,
+          amount: transaction.amount,
+          orderId: transaction.razorpay_order_id ?? '',
+          paymentId: transaction.razorpay_payment_id ?? '',
+          paidAt: transaction.updated_at,
+          email: config.get<{ [key: string]: string }>('email').admin_email,
+          request: request?.request || '',
+          urgency: request?.urgency || '',
+          specialty: request?.specialty || '',
+          user: {
+            name: user?.full_name ?? 'User',
+            email: user?.email ?? '',
+            phone: user?.phone ?? '',
+          },
+          url:
+            config.get<{ [key: string]: string }>('frontend').base_url +
+            `/admin/dashboard`,
+        });
     } catch (error) {
       this.logger.error(
         `Failed to send payment success email for ${user?.email}`,

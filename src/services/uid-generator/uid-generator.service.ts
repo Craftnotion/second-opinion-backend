@@ -1,15 +1,14 @@
 // src/common/utils/unique-id.generator.ts
 import { Injectable } from '@nestjs/common';
-import { customAlphabet } from 'nanoid';
 
 @Injectable()
 export class UniqueIdGenerator {
-  generateRequestId(): string {
-    const nums = '0123456789';
-    const id = Array.from({ length: 3 }, () =>
-      nums.charAt(Math.floor(Math.random() * nums.length)),
-    ).join('');
-    // Format: EMP-XXX
-    return `REQ-${id.slice(0, 3)}`;
+  generateRequestId(category: string, requestId: number): string {
+    // Get first letter of category, default to 'X' if empty
+    const categoryLetter = (category?.[0] || 'X').toUpperCase();
+    // Pad request id to 3 digits (e.g., 1 -> 001, 42 -> 042)
+    const paddedId = requestId.toString().padStart(3, '0');
+    // Format: REQ-C001 (C = category first letter, 001 = padded id)
+    return `REQ-${categoryLetter}${paddedId}`;
   }
 }

@@ -69,7 +69,15 @@ export class UserService {
     if (avatar.audioFile) {
       requests.avatar = avatar.audioFile[0] || null;
     }
-    requests.uid = this.uidGenerator.generateRequestId();
+    // Save first to get the database ID
+    requests.uid = 'TEMP'; // Temporary placeholder
+    await this.requestsRepository.save(requests);
+
+    // Generate uid using specialty and request id, then update
+    requests.uid = this.uidGenerator.generateRequestId(
+      specialty || '',
+      requests.id,
+    );
     await this.requestsRepository.save(requests);
 
     if (avatar.documents) {
