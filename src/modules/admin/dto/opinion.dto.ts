@@ -1,7 +1,7 @@
-import { Type } from 'class-transformer';
-import { IsNumber, IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class OpinionDto {
+  @IsOptional()
   @IsString()
   specialistName: string;
 
