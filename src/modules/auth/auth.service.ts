@@ -48,7 +48,15 @@ export class AuthService {
   }
 
   async login(data: loginDto) {
-    const { phone, otp, type } = data;
+    const phone = data.phone?.trim();
+    const type = data.type?.trim();
+    const normalizedOtp = data.otp?.trim();
+    const otp =
+      normalizedOtp &&
+      normalizedOtp !== 'undefined' &&
+      normalizedOtp !== 'null'
+        ? normalizedOtp
+        : undefined;
 
     let user = await this.userRepository.findOne({ where: { phone } });
 
@@ -74,7 +82,7 @@ export class AuthService {
     if (!otp) {
       const code = await this.codeService.generateOTP(phone, 'phone');
       try {
-        await this.textQueue.add('send-sms', { phone, code });
+        await this.textQueue.add('send-sms', { phone, otp: code, code });
       } catch (error) {
         console.error('AuthService: Failed to add SMS job to queue', {
           phone,

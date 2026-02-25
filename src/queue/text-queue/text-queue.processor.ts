@@ -31,18 +31,23 @@ export class TextQueueProcessor extends WorkerHost {
   }
 
   private async sendOtpSms(job: Job<any, any, string>): Promise<any> {
-    const { phone, code } = job.data;
+    const { phone } = job.data;
+    const rawOtp = job.data?.otp ?? job.data?.code;
+    const otp =
+      typeof rawOtp === 'number'
+        ? String(rawOtp)
+        : String(rawOtp ?? '').trim();
 
-    if (!phone || !code) {
+    if (!phone || !/^\d{6}$/.test(otp)) {
       const error = new Error(
-        `Missing required data: phone=${phone}, code=${code}`,
+        `Missing/invalid required data: phone=${phone}, otp=${otp}`,
       );
       console.error('TextQueueProcessor: Invalid OTP job data', error);
       throw error;
     }
 
     const mobileNo = `91${phone}`;
-    const smsContent = `Dear user, your OTP for login is ${code}. Use this password to validate you login. SecondAid`;
+    const smsContent = `Dear user, your OTP for login is ${otp}. Use this password to validate you login. SecondAid`;
     const dltTemplateId = '1307162799550106094';
 
     const url = `https://api.msg91.com/api/sendhttp.php?mobiles=${encodeURIComponent(mobileNo)}&authkey=${this.AUTH_KEY}&route=4&sender=${this.SENDER}&message=${encodeURIComponent(smsContent)}&DLT_TE_ID=${dltTemplateId}`;
