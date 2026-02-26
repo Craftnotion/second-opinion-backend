@@ -49,6 +49,7 @@ import { ResponseInterceptor } from './response.interceptor';
     }),
     TypeOrmModule.forRootAsync(typeormAsyncConfig),
     BullModule.forRoot({
+      prefix: process.env.BULLMQ_PREFIX?.trim() || 'second_opinion',
       connection: {
         host: process.env.REDIS_HOST || '127.0.0.1',
         port: parseInt(process.env.REDIS_PORT || '6379'),

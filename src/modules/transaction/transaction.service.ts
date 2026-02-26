@@ -15,6 +15,7 @@ import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { MailService } from 'src/services/email/email.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { TEXT_QUEUE_NAME } from 'src/queue/text-queue/text-queue.constants';
 const Razorpay = require('razorpay');
 
 @Injectable()
@@ -36,7 +37,7 @@ export class TransactionService {
     @Inject(forwardRef(() => UserService))
     private readonly userService: UserService,
     private readonly mailService: MailService,
-    @InjectQueue('text') private readonly textQueue: Queue,
+    @InjectQueue(TEXT_QUEUE_NAME) private readonly textQueue: Queue,
   ) {
     this.razorpay = new Razorpay({
       key_id: this.razorpayConfig.api_key_id,

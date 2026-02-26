@@ -15,6 +15,7 @@ import { MailService } from 'src/services/email/email.service';
 import { loginDto } from './dto/login.dto';
 import { requestDto } from '../user/dto/request.dto';
 import { LoginRequest } from 'src/types/request';
+import { TEXT_QUEUE_NAME } from 'src/queue/text-queue/text-queue.constants';
 
 const JwtConfig = config.get<configObject>('jwt');
 @Injectable()
@@ -22,7 +23,7 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    @InjectQueue('text') private readonly textQueue: Queue,
+    @InjectQueue(TEXT_QUEUE_NAME) private readonly textQueue: Queue,
     private readonly jwtService: JwtService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,

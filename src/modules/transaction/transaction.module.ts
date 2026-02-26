@@ -7,6 +7,7 @@ import { User } from 'src/database/entities/user.entity';
 import { UserModule } from '../user/user.module';
 import { MailQueueModule } from 'src/queue/email-queue/email-queue.module';
 import { BullModule } from '@nestjs/bullmq';
+import { TEXT_QUEUE_NAME } from 'src/queue/text-queue/text-queue.constants';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { BullModule } from '@nestjs/bullmq';
     forwardRef(() => UserModule),
     MailQueueModule,
     BullModule.registerQueue({
-      name: 'text',
+      name: TEXT_QUEUE_NAME,
     }),
   ],
   controllers: [TransactionController],

@@ -11,13 +11,14 @@ import { Code } from 'src/database/entities/code.entity';
 import { CodeService } from 'src/services/code/code.service';
 import { StringService } from 'src/services/string/string.service';
 import { MailQueueModule } from 'src/queue/email-queue/email-queue.module';
+import { TEXT_QUEUE_NAME } from 'src/queue/text-queue/text-queue.constants';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Code]),
     ConfigModule,
     BullModule.registerQueue({
-      name: 'text',
+      name: TEXT_QUEUE_NAME,
     }),
     MailQueueModule,
   ],
@@ -26,5 +27,4 @@ import { MailQueueModule } from 'src/queue/email-queue/email-queue.module';
   exports: [AuthService],
 })
 export class AuthModule {}
-
 

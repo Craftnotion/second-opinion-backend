@@ -12,6 +12,7 @@ import { opinionDocument } from 'src/database/entities/opinion-document.entity';
 import { MailService } from 'src/services/email/email.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { TEXT_QUEUE_NAME } from 'src/queue/text-queue/text-queue.constants';
 const dbConfig = config.get<{ [key: string]: string }>('app');
 
 @Injectable()
@@ -23,7 +24,7 @@ export class AdminService {
     @InjectRepository(opinionDocument)
     private readonly opinionDocumentRepository: Repository<opinionDocument>,
     private readonly mailService: MailService,
-    @InjectQueue('text') private readonly textQueue: Queue,
+    @InjectQueue(TEXT_QUEUE_NAME) private readonly textQueue: Queue,
   ) { }
 
   async getRequests(paramsFilter: filterDto, req: LoginRequest) {

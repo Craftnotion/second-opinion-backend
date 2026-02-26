@@ -1,7 +1,8 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
+import { TEXT_QUEUE_NAME } from './text-queue.constants';
 
-@Processor('text')
+@Processor(TEXT_QUEUE_NAME)
 export class TextQueueProcessor extends WorkerHost {
   private readonly AUTH_KEY = '272160A7NN1J35i5cb096b1';
   private readonly SENDER = 'SECAID';
