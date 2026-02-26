@@ -57,7 +57,7 @@ export class TextQueueProcessor extends WorkerHost {
   }
 
   private async sendPaymentSms(job: Job<any, any, string>): Promise<any> {
-    const { phone, orderId } = job.data;
+    const { phone, orderId, amount, paymentId } = job.data;
 
     if (!phone || !orderId) {
       const error = new Error(
@@ -74,12 +74,14 @@ export class TextQueueProcessor extends WorkerHost {
     const url = 'https://control.msg91.com/api/v5/flow';
     const payload = {
       template_id: templateId,
-      short_url: '0',
+      short_url: '1',
       realTimeResponse: '1',
       recipients: [
         {
           mobiles: mobileNo,
           req_id: orderId,
+          amount: amount ? String(amount) : '',
+          payment_id: paymentId || '',
         },
       ],
     };
@@ -102,15 +104,19 @@ export class TextQueueProcessor extends WorkerHost {
     const mobileNo = `91${phone}`;
     const templateId = '695210a19f204c2cd426feb3';
 
-    // Try the direct send API instead of flow API
-    const url = 'https://control.msg91.com/api/v5/flow/';
+    const url = 'https://control.msg91.com/api/v5/flow';
     const payload = {
-      flow_id: templateId,
-      sender: this.SENDER,
-      mobiles: mobileNo,
-      user_name: user_name || 'Test User',
-      reason: reason || 'Test Reason',
-      req_url: req_url || 'https://test.com',
+      template_id: templateId,
+      short_url: '1',
+      realTimeResponse: '1',
+      recipients: [
+        {
+          mobiles: mobileNo,
+          user_name: user_name || 'Test User',
+          reason: reason || 'Test Reason',
+          req_url: req_url || 'https://test.com',
+        },
+      ],
     };
 
     console.log(
@@ -118,35 +124,7 @@ export class TextQueueProcessor extends WorkerHost {
       JSON.stringify(payload, null, 2),
     );
 
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          accept: 'application/json',
-          authkey: this.AUTH_KEY,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const responseData = await res.json();
-      console.log(
-        'Admin Payment Notification SMS API Response:',
-        JSON.stringify(responseData, null, 2),
-      );
-
-      if (!res.ok || responseData.type === 'error') {
-        throw new Error(`msg91 API error: ${JSON.stringify(responseData)}`);
-      }
-
-      return { success: true, response: responseData };
-    } catch (error) {
-      console.error('Failed to send Admin Payment SMS', {
-        phone,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
+    return this.sendSmsViaFlowApi(url, payload, phone, 'Admin Payment');
   }
   private async sendSms(
     url: string,
@@ -202,7 +180,7 @@ export class TextQueueProcessor extends WorkerHost {
     const url = 'https://control.msg91.com/api/v5/flow';
     const payload = {
       template_id: templateId,
-      short_url: '0',
+      short_url: '1',
       realTimeResponse: '1',
       recipients: [
         {
