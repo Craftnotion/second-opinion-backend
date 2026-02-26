@@ -10,7 +10,7 @@ import { VerifyPaymentDto } from './dto/verify-payment.dto';
 @Controller('transaction')
 @ApiTags('Transaction')
 export class TransactionController {
-  constructor(private readonly transactionService: TransactionService) {}
+  constructor(private readonly transactionService: TransactionService) { }
 
   @ApiOperation({ summary: 'Create Razorpay Order for Popup Payment' })
   @ApiBody({ type: TransactionDto })
@@ -45,11 +45,9 @@ export class TransactionController {
 
     // Return proper HTTP status codes for Razorpay
     if (result.success === 1) {
-      return res.status(200).json({ status: 'success' });
+      res.status(200).json({ status: 'success' });
     } else {
-      return res
-        .status(400)
-        .json({ status: 'failed', message: result.message });
+      res.status(400).json({ status: 'failed', message: result.message });
     }
   }
 }
