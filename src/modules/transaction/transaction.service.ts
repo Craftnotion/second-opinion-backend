@@ -354,13 +354,14 @@ export class TransactionService {
         );
 
         if (transaction) {
+          const previousStatus = transaction.status;
           transaction.status = 'completed';
           transaction.razorpay_payment_id = payment.id;
           if (payment.order_id)
             transaction.razorpay_order_id = payment.order_id;
 
           await this.TransactionRepository.save(transaction);
-          await this.notifyPaymentSuccess(transaction, transaction.status);
+          await this.notifyPaymentSuccess(transaction, previousStatus);
           this.logger.log(
             `[WEBHOOK] Transaction ${transaction.id} completed via payment.authorized`,
           );
@@ -396,12 +397,13 @@ export class TransactionService {
             );
 
             if (transaction) {
+              const previousStatus = transaction.status;
               transaction.status = 'completed';
               transaction.razorpay_payment_id = payment.id;
               transaction.razorpay_order_id = order.id;
 
               await this.TransactionRepository.save(transaction);
-              await this.notifyPaymentSuccess(transaction, transaction.status);
+              await this.notifyPaymentSuccess(transaction, previousStatus);
               this.logger.log(
                 `[WEBHOOK] Transaction ${transaction.id} completed via order.paid`,
               );
@@ -460,13 +462,14 @@ export class TransactionService {
             };
           }
 
+          const previousStatus = transaction.status;
           transaction.status = 'completed';
           transaction.razorpay_payment_id = payment.id;
           if (payment.order_id)
             transaction.razorpay_order_id = payment.order_id;
 
           await this.TransactionRepository.save(transaction);
-          await this.notifyPaymentSuccess(transaction, transaction.status);
+          await this.notifyPaymentSuccess(transaction, previousStatus);
           this.logger.log(
             `[WEBHOOK] Transaction ${transaction.id} completed via payment.captured`,
           );
