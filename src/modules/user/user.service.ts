@@ -56,16 +56,24 @@ export class UserService {
     const { specialty, urgency, request, cost } = requestDto;
 
     const pastTransaction = await this.transactionRepository.findOne({
-      where: { user_id: user.id },
+      where: { user_id: user.id, status: 'completed' },
     });
 
-    const isFree = !pastTransaction && urgency === 'standard';
+    const isFirstRequest = !pastTransaction;
+    const isFree = isFirstRequest && urgency === 'standard';
+
+    let finalCost = parseInt(cost) || 0;
+    if (isFree) {
+      finalCost = 0;
+    } else if (isFirstRequest && urgency === 'urgent') {
+      finalCost = finalCost > 500 ? finalCost - 500 : 0; // 500 discount for first urgent request
+    }
     const requests = new Requests();
     requests.user_id = user.id;
     requests.specialty = specialty || null;
     requests.urgency = urgency || null;
     requests.request = request || null;
-    requests.cost = isFree ? 0 : parseInt(cost) || null;
+    requests.cost = finalCost;
     if (avatar.audioFile) {
       requests.avatar = avatar.audioFile[0] || null;
     }

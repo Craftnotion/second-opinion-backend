@@ -59,7 +59,7 @@ export class TransactionService {
       throw new Error('Request not found');
     }
 
-    // Check if this qualifies as a free request
+    // Check if this qualifies as a free request or discounted request
     const pastTransaction = await this.TransactionRepository.findOne({
       where: {
         user_id: user.id,
@@ -68,18 +68,26 @@ export class TransactionService {
       order: { created_at: 'DESC' },
     });
 
-    const isFree = !pastTransaction && request.urgency === 'standard';
+    const isFirstRequest = !pastTransaction;
+    const isFree = isFirstRequest && request.urgency === 'standard';
+
+    let finalAmount = Number(amount);
+    if (isFree) {
+      finalAmount = 0;
+    } else if (isFirstRequest && request.urgency === 'urgent') {
+      finalAmount = finalAmount > 500 ? finalAmount - 500 : 0;
+    }
 
     // Create transaction
     const transaction = this.TransactionRepository.create({
       user: user,
-      amount: isFree ? 0 : Number(amount),
-      status: isFree ? 'completed' : 'pending',
+      amount: finalAmount,
+      status: finalAmount === 0 ? 'completed' : 'pending',
       request_id: request.id,
     });
     const savedTransaction = await this.TransactionRepository.save(transaction);
 
-    if (isFree) {
+    if (finalAmount === 0) {
       this.logger.log(
         `[FREE_REQUEST] Created free transaction ${savedTransaction.id} for user ${userId}`,
       );
@@ -95,7 +103,7 @@ export class TransactionService {
       });
       await this.textQueue.add('send-to-admin-payment-sms', {
         user_name: user?.full_name || 'User',
-        reason: request?.request || '',
+        reason: request?.specialty || '',
         req_url:
           config.get<{ [key: string]: string }>('frontend').base_url +
           `/admin/dashboard/${request?.uid}`,
@@ -104,12 +112,12 @@ export class TransactionService {
 
       return {
         success: 1,
-        message: 'common.transaction.free_request',
+        message: isFree ? 'common.transaction.free_request' : 'common.transaction.discounted_request',
         data: {
           transaction_id: savedTransaction.id,
           amount: 0,
           status: 'completed',
-          is_free: true,
+          is_free: isFree,
           request_id: request.id,
         },
       };
@@ -117,7 +125,7 @@ export class TransactionService {
 
     // Handle paid requests - create Razorpay order
     const options = {
-      amount: Number(amount) * 100,
+      amount: finalAmount * 100,
       currency: 'INR',
       receipt: `receipt_order_${savedTransaction.id}`,
       notes: {
@@ -723,7 +731,7 @@ export class TransactionService {
       await Promise.all([
         this.textQueue.add('send-to-admin-payment-sms', {
           user_name: user?.full_name || 'User',
-          reason: request?.request || '',
+          reason: request?.specialty || '',
           req_url: `${config.get<{ [key: string]: string }>('frontend').base_url}/req/${request?.uid}`,
           phone: admin?.phone || '',
         }),
